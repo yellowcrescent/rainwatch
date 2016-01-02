@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+# coding=utf-8
+###############################################################################
+#
+# rainwatch
+# Rainwatch: Deluge RPC client and download manager
+#
+# @author   J. Hipps <jacob@ycnrg.org>
+# @repo     https://bitbucket.org/yellowcrescent/rainwatch
+#
+# Copyright (c) 2016 J. Hipps / Neo-Retro Group
+#
+# https://ycnrg.org/
+#
+# @deps     rwatch
+#
+###############################################################################
+
+import sys
+import os
+import re
+import json
+import signal
+import optparse
+import operator
+import time
+
+from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch import rcfile,deluge
+
+class xsetup:
+    """Contains version information and globals"""
+    ## Version info
+    version = "0.10.1"
+    vdate   = "01 Jan 2015"
+
+    config = None
+    lconfig = None
+    defaults = {
+                    'run': {
+                        'torid': None,
+                        'quiet': False,
+                        'list': False,
+                        'json': False,
+                        'full': False
+                    },
+                    'core': {
+                        'loglevel': LL.INFO
+                    },
+                    'deluge': {
+                        'user': "",
+                        'pass': "",
+                        'hostname': "localhost",
+                        'port': 58846
+                    }
+               }
+
+def show_banner():
+    """
+    Display banner
+    """
+    print ""
+    print C.CYN, "*** ", C.WHT, "rainwatch", C.OFF
+    print C.CYN, "*** ", C.CYN, "Version", xsetup.version, "(" + xsetup.vdate + ")", C.OFF
+    print C.CYN, "*** ", C.GRN, "Copyright (c) 2016 J. Hipps / Neo-Retro Group", C.OFF
+    print C.CYN, "*** ", C.GRN, "J. Hipps <jacob@ycnrg.org>", C.OFF
+    print C.CYN, "*** ", C.YEL, "https://ycnrg.org/", C.OFF
+    print ""
+
+def parse_cli():
+    """
+    Parse command-line options
+    """
+    global oparser
+    oparser = optparse.OptionParser(usage="%prog [options] <[-i] TORRENT_ID>",version=xsetup.version+" ("+xsetup.vdate+")")
+
+    # General options
+    oparser.add_option('-v', '--verbose', action="count", dest="run.verbose", help="Increase logging verbosity (-v Verbose, -vv Debug, -vvv Debug2)")
+    oparser.add_option('-L','--loglevel', action="store", dest="core.loglevel", default=False,metavar="NUM", help="Logging output verbosity (4=error,5=warning,6=info,7=verbose,8=debug,9=debug2)")
+    oparser.add_option('-q', action="store_true", dest="run.quiet", default=False, help="Quiet - suppress log messages (use as first option)")
+    oparser.add_option('-i', action="store", dest="run.torid", default=False,metavar="TORID", help="Torrent ID")
+
+    oparser.add_option('-l','--list', action="store_true", dest="run.list", default=False, help="List torrents")
+    oparser.add_option('-f','--full', action="store_true", dest="run.full", default=False, help="Full output in torrent list")
+    oparser.add_option('-j','--json', action="store_true", dest="run.json", default=False, help="Output data as JSON")
+
+    options, args = oparser.parse_args(sys.argv[1:])
+    vout = vars(options)
+
+    if len(args) >= 1:
+        vout['run.torid'] = args[0]
+
+    if vout['run.verbose']:
+        vout['run.verbose'] += 6
+        vout['core.loglevel'] = vout['run.verbose']
+    if vout['run.verbose'] or vout['core.loglevel']:
+        loglevel(int(vout['core.loglevel']))
+    if vout['run.quiet']:
+        vout['core.loglevel'] = LL.ERROR
+        loglevel(vout['core.loglevel'])
+
+    return vout
+
+def mode_list():
+    global dlx
+
+    # if torrent ID is specified, use it to filter
+    if xsetup.config['run']['torid']:
+        fltr = { 'id': xsetup.config['run']['torid'] }
+    else:
+        fltr = {}
+
+    # get list of torrents
+    if xsetup.config['run']['full']:
+        torlist = dlx.getTorrentList(filter=fltr,fields=[])
+    else:
+        torlist = dlx.getTorrentList(filter=fltr)
+
+    if xsetup.config['run']['json']:
+        print json.dumps(torlist)
+    else:
+        for ti,tv in torlist.iteritems():
+            print "%s: %s (%0.01f) [%s]" % (ti,tv['name'],tv['progress'],tv['tracker_host'])
+
+def mode_chook(tid):
+    global dlx
+
+    # get torrent data
+    tordata = dlx.getTorrent(tid)
+
+##############################################################################
+## Entry point
+##
+
+if __name__ == '__main__':
+
+    # Show banner
+    if len(sys.argv) < 2 or sys.argv[1] != '--version' and sys.argv[1][1] != 'q':
+        show_banner()
+
+    # Set default loglevel
+    loglevel(xsetup.defaults['core']['loglevel'])
+
+    # parse CLI options and load running config
+    xopt = parse_cli()
+    rcfile.loadConfig(cliopts=xopt)
+    loglevel(xsetup.config['core']['loglevel'])
+
+    # Set quiet exception handler for non-verbose operation
+    if xsetup.config['core']['loglevel'] < LL.VERBOSE:
+        sys.excepthook = exceptionHandler
+
+    # connect to deluge
+    dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))
+
+    ## process commands
+
+    # get list of torrents
+    if xsetup.config['run']['list']:
+        mode_list()
+    elif xsetup.config['run']['torid']:
+        mode_chook(xsetup.config['run']['torid'])
+    else:
+        logthis("Nothing to do.",loglevel=LL.WARNING)

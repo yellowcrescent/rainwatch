@@ -15,7 +15,7 @@ setup(
     packages = find_packages(),
     scripts = ['rainwatch'],
 
-    install_requires = ['docutils>=0.3','pymongo>=3.0','redis>=2.10','pymediainfo>=1.4.0','enzyme>=0.4.1'],
+    install_requires = ['docutils>=0.3','pymongo>=3.0','redis>=2.10','pymediainfo>=1.4.0','enzyme>=0.4.1','deluge-client>=1.0.3'],
 
     package_data = {
         '': [ '*.md' ],

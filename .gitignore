@@ -1,0 +1,7 @@
+*.pyc
+*.egg-info
+build
+dist
+rainwatch.conf
+fonts
+*.pid
