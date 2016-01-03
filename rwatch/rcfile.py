@@ -93,6 +93,44 @@ def parse(xtraConf=None):
     # return loaded filename and rcdata
     return (rcfile, rcdict)
 
+def parseFile(fpath):
+    """
+    Parse rcfile fpath
+    Output: rcdata
+    """
+    logthis("Parsing RC file:",suffix=fpath,loglevel=LL.DEBUG)
+
+    # use ConfigParser to parse the rcfiles
+    # TODO: only first file is parsed for now, implement override system eventually
+    rcpar = ConfigParser.SafeConfigParser()
+    rcfile = None
+    if os.path.exists(fpath):
+        rcfile = os.path.realpath(fpath)
+        logthis("Parsing config file:",suffix=rcfile,loglevel=LL.VERBOSE)
+        try:
+            # use ConfigParser.readfp() so that we can correctly parse UTF-8 stuffs
+            # ...damn you python 2 and your shitty unicode bodgery
+            with codecs.open(rcfile,'r',encoding='utf-8') as f:
+                rcpar.readfp(f)
+        except ConfigParser.ParsingError as e:
+            logthis("Error parsing config file: %s" % e,loglevel=LL.ERROR)
+            return False
+    else:
+        logthis("File does not exist, skipping",loglevel=LL.WARNING)
+
+    # build a dict
+    rcdict = {}
+    rsecs = rcpar.sections()
+    logthis("Config sections:",suffix=rsecs,loglevel=LL.DEBUG2)
+    for ss in rsecs:
+        isecs = rcpar.items(ss)
+        rcdict[ss] = {}
+        for ii in isecs:
+            logthis(">> %s" % ii[0],suffix=ii[1],loglevel=LL.DEBUG2)
+            rcdict[ss][ii[0]] = qstrip(ii[1])
+
+    # return loaded filename and rcdata
+    return rcdict
 
 def merge(inrc,cops):
     """

@@ -24,15 +24,18 @@ import signal
 import optparse
 import operator
 import time
+import socket
+import subprocess
+from datetime import datetime
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
-from rwatch import rcfile,deluge
+from rwatch import rcfile,deluge,ruleparser,jabber
 
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.1"
-    vdate   = "01 Jan 2015"
+    version = "0.10.2"
+    vdate   = "03 Jan 2015"
 
     config = None
     lconfig = None
@@ -45,7 +48,24 @@ class xsetup:
                         'full': False
                     },
                     'core': {
-                        'loglevel': LL.INFO
+                        'loglevel': LL.INFO,
+                        'rules': 'rainwatch.rules'
+                    },
+                    'xfer': {
+                        'hostname': None,
+                        'user': None,
+                        'basepath': ''
+                    },
+                    'notify': {
+                        'hostname': None,
+                        'user': None,
+                        'icon': ""
+                    },
+                    'xmpp': {
+                        'user': None,
+                        'pass': None,
+                        'server': None,
+                        'sendto': None
                     },
                     'deluge': {
                         'user': "",
@@ -101,6 +121,70 @@ def parse_cli():
 
     return vout
 
+def fmtsize(insize,rate=False,bits=False):
+    """format human-readable file size and xfer rates"""
+    onx = float(abs(insize))
+    print "onx=",onx
+    for u in ['B','K','M','G','T','P']:
+        if onx < 1024.0:
+            tunit = u
+            break
+        onx /= 1024.0
+    suffix = ""
+    if u != 'B': suffix = "iB"
+    if rate:
+        if bits:
+            suffix = "bps"
+            onx *= 8.0
+        else:
+            suffix += "/sec"
+    if tunit == 'B':
+        ostr = "%3d %s%s" % (onx,tunit,suffix)
+    else:
+        ostr = "%3.01f %s%s" % (onx,tunit,suffix)
+    return ostr
+
+def rexec(optlist,supout=False):
+    """execute command; input a list of options; if `supout` is True, then suppress stderr"""
+    logthis("Executing:",suffix=optlist,loglevel=LL.DEBUG)
+    try:
+        if supout:
+            fout = subprocess.check_output(optlist,stderr=subprocess.STDOUT)
+        else:
+            fout = subprocess.check_output(optlist)
+    except subprocess.CalledProcessError as e:
+        logthis("exec failed:",suffix=e,loglevel=LL.ERROR)
+        fout = None
+    return fout
+
+def libnotify_send(msgText,hname=False,huser=False,msgTimeout=10000,msgHead=False,msgIcon=False):
+    """send libnotify notification to another host via ssh"""
+    # use defaults
+    if not hname: hname = xsetup.config['notify']['notify_host']
+    if not huser: huser = xsetup.config['notify']['notify_user']
+
+    # set up notification icon
+    if msgIcon: xicon = "-i '%s'" % (msgIcon)
+    elif msgIcon == False and xsetup.config['xfer']['notify']['icon']: xicon = "-i '%s'" % (xsetup.config['xfer']['notify']['icon'])
+    else: xicon = ''
+
+    # if no message header, then use our hostname
+    if msgHead == False: msgHead = socket.gethostname()
+    else: msgHead = [msgHead]
+
+    # escape newlines and such
+    msgText = "'%s'" % (msgText.replace("\n","\\n").replace("\r","\\r").replace("\t","\\t"))
+
+    # get dbus session address
+    dbsout = rexec(['/usr/bin/ssh',hname,'--','ps','aux','|','grep',huser])
+    dbus_addr = re.search('dbus-daemon --fork --session --address=(.+)', dbsout, re.I|re.M).group(1)
+    logthis("Got dbus session:",suffix=dbus_addr,loglevel=LL.VERBOSE)
+
+    # send notification
+    rexec(['/usr/bin/ssh',hname,'--',"DBUS_SESSION_BUS_ADDRESS=\'%s\'" % (dbus_addr),'notify-send','-t',str(msgTimeout),xicon,msgHead,msgText])
+    logthis("Sent libnotify message to remote host",loglevel=LL.VERBOSE)
+
+
 def mode_list():
     global dlx
 
@@ -117,16 +201,61 @@ def mode_list():
         torlist = dlx.getTorrentList(filter=fltr)
 
     if xsetup.config['run']['json']:
-        print json.dumps(torlist)
+        print json.dumps(torlist,indent=4,separators=(',', ': '))
     else:
         for ti,tv in torlist.iteritems():
             print "%s: %s (%0.01f) [%s]" % (ti,tv['name'],tv['progress'],tv['tracker_host'])
 
 def mode_chook(tid):
-    global dlx
+    global dlx,jbx
 
     # get torrent data
+    logthis(">> Processing 'complete' exec hook for",suffix=tid,loglevel=LL.INFO)
     tordata = dlx.getTorrent(tid)
+
+    # find matching rules
+    rname,rset = ruleparser.match(tordata)
+    if rname:
+        logthis("++ Matched ruleset:\n",suffix=print_r(rset),loglevel=LL.VERBOSE)
+    else:
+        logthis("!! No ruleset matched",loglevel=LL.WARNING)
+
+    # move to destination dir
+    if rset.get('moveto',None):
+        if dlx.moveTorrent(tid, rset['moveto']):
+            logthis("** Moved to",suffix=rset['moveto'],loglevel=LL.INFO)
+        else:
+            logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
+
+    # get updated data
+    tordata = dlx.getTorrent(tid)
+
+    # download
+    if xsetup.config['xfer']['hostname']:
+        # send xfer start notification
+        if xsetup.config['xfer']['notify_user'] and xsetup.config['xfer']['notify_host']:
+            libnotify_send("%s\n\nStarted transfer to incoming." % (tordata['name']))
+
+        # xfer via scp
+        logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath']),loglevel=LL.INFO)
+        xstart = datetime.now()
+        rexec(['/usr/bin/scp','-B','-r',"'%s/%s'" % (tordata['save_path'],tordata['name']),"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
+        xstop = datetime.now()
+        logthis("** Transfer complete.",loglevel=LL.INFO)
+
+        # send xfer complete notification
+        xdelta = xstop - xstart
+        xdelta_str = re.sub('\.[0-9]+$','',str(xdelta))
+        tsize = tordata['total_size']
+        trate = float(tsize) / float(xdelta.seconds)
+        tsize_str = fmtsize(tsize)
+        trate_str = fmtsize(trate,rate=True)
+        trate_bstr = fmtsize(trate,rate=True,bits=True)
+        if jbx:
+            jbx.sendmsg(xsetup.config['xmpp']['sendto'],"%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr))
+
+    # done
+    logthis("*** Finished with complete exec hook for",suffix=tordata['name'],loglevel=LL.INFO)
 
 ##############################################################################
 ## Entry point
@@ -150,8 +279,17 @@ if __name__ == '__main__':
     if xsetup.config['core']['loglevel'] < LL.VERBOSE:
         sys.excepthook = exceptionHandler
 
+    # parse rules file
+    ruleparser.parse()
+
     # connect to deluge
     dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))
+
+    # connect to jabber
+    if xsetup.config['xmpp']['user'] and xsetup.config['xmpp']['pass']:
+        jbx = jabber.client(xsetup.config['xmpp']['user'], xsetup.config['xmpp']['pass'])
+    else:
+        jbx = None
 
     ## process commands
 

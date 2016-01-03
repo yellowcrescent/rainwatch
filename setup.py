@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 setup(
     name = "rainwatch",
-    version = "0.10.1",
+    version = "0.10.2",
     author = "Jacob Hipps",
     author_email = "jacob@ycnrg.org",
     license = "MIT",
@@ -15,7 +15,7 @@ setup(
     packages = find_packages(),
     scripts = ['rainwatch'],
 
-    install_requires = ['docutils>=0.3','pymongo>=3.0','redis>=2.10','pymediainfo>=1.4.0','enzyme>=0.4.1','deluge-client>=1.0.3'],
+    install_requires = ['docutils>=0.3','pymongo>=3.0','redis>=2.10','pymediainfo>=1.4.0','enzyme>=0.4.1','deluge-client>=1.0.3','xmpppy==0.5.0rc1'],
 
     package_data = {
         '': [ '*.md' ],

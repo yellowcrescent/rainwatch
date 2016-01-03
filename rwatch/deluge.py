@@ -6,7 +6,7 @@
 # Rainwatch: Deluge RPC interface functions
 #
 # @author   J. Hipps <jacob@ycnrg.org>
-# @repo     https://bitbucket.org/yellowcrescent/yc_xbake
+# @repo     https://bitbucket.org/yellowcrescent/rainwatch
 #
 # Copyright (c) 2016 J. Hipps / Neo-Retro Group
 #
