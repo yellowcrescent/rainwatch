@@ -104,8 +104,8 @@ def parseFile(fpath):
     # TODO: only first file is parsed for now, implement override system eventually
     rcpar = ConfigParser.SafeConfigParser()
     rcfile = None
-    if os.path.exists(fpath):
-        rcfile = os.path.realpath(fpath)
+    if os.path.exists(os.path.expanduser(fpath)):
+        rcfile = os.path.realpath(os.path.expanduser(fpath))
         logthis("Parsing config file:",suffix=rcfile,loglevel=LL.VERBOSE)
         try:
             # use ConfigParser.readfp() so that we can correctly parse UTF-8 stuffs

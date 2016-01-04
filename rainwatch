@@ -160,8 +160,8 @@ def rexec(optlist,supout=False):
 def libnotify_send(msgText,hname=False,huser=False,msgTimeout=10000,msgHead=False,msgIcon=False):
     """send libnotify notification to another host via ssh"""
     # use defaults
-    if not hname: hname = xsetup.config['notify']['notify_host']
-    if not huser: huser = xsetup.config['notify']['notify_user']
+    if not hname: hname = xsetup.config['notify']['hostname']
+    if not huser: huser = xsetup.config['notify']['user']
 
     # set up notification icon
     if msgIcon: xicon = "-i '%s'" % (msgIcon)
@@ -233,8 +233,11 @@ def mode_chook(tid):
     # download
     if xsetup.config['xfer']['hostname']:
         # send xfer start notification
-        if xsetup.config['xfer']['notify_user'] and xsetup.config['xfer']['notify_host']:
-            libnotify_send("%s\n\nStarted transfer to incoming." % (tordata['name']))
+        if xsetup.config['notify']['user'] and xsetup.config['notify']['hostname']:
+            try:
+                libnotify_send("%s\n\nStarted transfer to incoming." % (tordata['name']))
+            except Exception as e:
+                logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
 
         # xfer via scp
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath']),loglevel=LL.INFO)
