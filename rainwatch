@@ -34,7 +34,7 @@ from rwatch import rcfile,deluge,ruleparser,jabber
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.3"
+    version = "0.10.4"
     vdate   = "03 Jan 2015"
 
     config = None
@@ -241,9 +241,15 @@ def mode_chook(tid):
                 logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
 
         # xfer via scp
+        tgpath = "%s/%s" % (tordata['save_path'],tordata['name'])
+        if not os.path.exists(tgpath):
+            logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
+            return False
+        else:
+            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
-        rexec(['/usr/bin/scp','-B','-r',"'%s/%s'" % (tordata['save_path'],tordata['name']),"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
+        rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
         xstop = datetime.now()
         logthis("** Transfer complete.",loglevel=LL.INFO)
 
@@ -260,6 +266,7 @@ def mode_chook(tid):
 
     # done
     logthis("*** Finished with complete exec hook for",suffix=tordata['name'],loglevel=LL.INFO)
+    return True
 
 ##############################################################################
 ## Entry point
