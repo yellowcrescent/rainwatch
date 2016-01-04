@@ -28,7 +28,7 @@ import socket
 import subprocess
 from datetime import datetime
 
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler,openlog,closelog
 from rwatch import rcfile,deluge,ruleparser,jabber
 
 class xsetup:
@@ -49,6 +49,7 @@ class xsetup:
                     },
                     'core': {
                         'loglevel': LL.INFO,
+                        'logfile': "rainwatch.log",
                         'rules': 'rainwatch.rules'
                     },
                     'xfer': {
@@ -274,7 +275,7 @@ def mode_chook(tid):
 if __name__ == '__main__':
 
     # Show banner
-    if len(sys.argv) < 2 or sys.argv[1] != '--version' and sys.argv[1][1] != 'q':
+    if len(sys.argv) < 2 or sys.argv[1] != '--version' and not (len(sys.argv[1]) > 1 and sys.argv[1][1] == 'q'):
         show_banner()
 
     # Set default loglevel
@@ -284,6 +285,7 @@ if __name__ == '__main__':
     xopt = parse_cli()
     rcfile.loadConfig(cliopts=xopt)
     loglevel(xsetup.config['core']['loglevel'])
+    openlog(xsetup.config['core']['logfile'])
 
     # Set quiet exception handler for non-verbose operation
     if xsetup.config['core']['loglevel'] < LL.VERBOSE:
@@ -310,3 +312,5 @@ if __name__ == '__main__':
         mode_chook(xsetup.config['run']['torid'])
     else:
         logthis("Nothing to do.",loglevel=LL.WARNING)
+
+    closelog()

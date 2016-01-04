@@ -5,3 +5,4 @@ dist
 *.conf
 fonts
 *.pid
+*.log

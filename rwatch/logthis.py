@@ -23,6 +23,8 @@ import logging
 import logging.handlers
 import signal
 import json
+import re
+from datetime import datetime
 
 class C:
     """ANSI Colors"""
@@ -111,6 +113,9 @@ class LL:
 # set default loglevel
 g_loglevel = LL.INFO
 
+# logfile handle
+loghand = None
+
 def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
     global g_loglevel
 
@@ -154,6 +159,41 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
 
     if g_loglevel >= loglevel:
         sys.stdout.write(finline)
+
+    # write to logfile
+    writelog(finline)
+
+def openlog(fname="rainwatch.log"):
+    global loghand
+    prxname = os.path.basename(sys.argv[0])
+    try:
+        loghand = open(fname,'a')
+        writelog("Logging started.\n")
+        writelog("%s - Version %s (%s)\n" % (prxname,__main__.xsetup.version,__main__.xsetup.vdate))
+        return True
+    except Exception as e:
+        logthis("Failed to open logfile '%s' for writing:" % (fname),suffix=e,loglevel=LL.ERROR)
+        return False
+
+def closelog():
+    global loghand
+    if loghand:
+        try:
+            loghand.close()
+            return True
+        except:
+            return False
+    else:
+        return True
+
+def writelog(logmsg):
+    global loghand
+    if loghand:
+        loghand.write("[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"),decolor(logmsg)))
+        loghand.flush()
+
+def decolor(instr):
+    return re.sub('\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)','',instr)
 
 def loglevel(newlvl=None):
     global g_loglevel

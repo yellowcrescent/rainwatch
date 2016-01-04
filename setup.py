@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 setup(
     name = "rainwatch",
-    version = "0.10.5",
+    version = "0.10.6",
     author = "Jacob Hipps",
     author_email = "jacob@ycnrg.org",
     license = "MIT",
