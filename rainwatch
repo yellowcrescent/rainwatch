@@ -34,7 +34,7 @@ from rwatch import rcfile,deluge,ruleparser,jabber
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.2"
+    version = "0.10.3"
     vdate   = "03 Jan 2015"
 
     config = None
@@ -124,7 +124,6 @@ def parse_cli():
 def fmtsize(insize,rate=False,bits=False):
     """format human-readable file size and xfer rates"""
     onx = float(abs(insize))
-    print "onx=",onx
     for u in ['B','K','M','G','T','P']:
         if onx < 1024.0:
             tunit = u
@@ -224,6 +223,8 @@ def mode_chook(tid):
     if rset.get('moveto',None):
         if dlx.moveTorrent(tid, rset['moveto']):
             logthis("** Moved to",suffix=rset['moveto'],loglevel=LL.INFO)
+            # super-hacky/lazy way to ensure Deluge has moved the file before we attempt to xfer it
+            time.sleep(3)
         else:
             logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
 
