@@ -34,7 +34,7 @@ from rwatch import rcfile,deluge,ruleparser,jabber
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.4"
+    version = "0.10.5"
     vdate   = "03 Jan 2015"
 
     config = None
@@ -164,7 +164,7 @@ def libnotify_send(msgText,hname=False,huser=False,msgTimeout=10000,msgHead=Fals
 
     # set up notification icon
     if msgIcon: xicon = "-i '%s'" % (msgIcon)
-    elif msgIcon == False and xsetup.config['xfer']['notify']['icon']: xicon = "-i '%s'" % (xsetup.config['xfer']['notify']['icon'])
+    elif msgIcon == False and xsetup.config['notify']['icon']: xicon = "-i '%s'" % (xsetup.config['notify']['icon'])
     else: xicon = ''
 
     # if no message header, then use our hostname
@@ -223,8 +223,7 @@ def mode_chook(tid):
     if rset.get('moveto',None):
         if dlx.moveTorrent(tid, rset['moveto']):
             logthis("** Moved to",suffix=rset['moveto'],loglevel=LL.INFO)
-            # super-hacky/lazy way to ensure Deluge has moved the file before we attempt to xfer it
-            time.sleep(3)
+            time.sleep(2)
         else:
             logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
 
