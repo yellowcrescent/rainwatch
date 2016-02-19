@@ -54,7 +54,7 @@ class rainshell(paramiko.client.SSHClient):
                 self.connect(hostname,port,username,password,key_filename=keyfile,timeout=timeout,compress=True)
             except Exception as e:
                 logthis("!! Failed to connect via SSH to remote host (%s@%s:%d):" % (username,hostname,port),suffix=e,loglevel=LL.ERROR)
-                return False
+                return
 
             self.connected = True
             logthis("** Connected to remote host via SSH:",suffix="%s@%s:%d" % (username,hostname,port),loglevel=LL.INFO)

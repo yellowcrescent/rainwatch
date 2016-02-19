@@ -173,7 +173,7 @@ def mode_chook(tid):
     tordata = dlx.getTorrent(tid)
 
     # establish SSH connection
-    rsh = rainshell(xsetup.config['xfer']['hostname'],xsetup.config['xfer']['user'],xsetup.config['xfer']['keyfile'],int(xsetup.config['xfer']['port']))
+    rsh = rainshell(xsetup.config['xfer']['hostname'],username=xsetup.config['xfer']['user'],keyfile=xsetup.config['xfer']['keyfile'],port=int(xsetup.config['xfer']['port']))
     rsh.jabber(jbx)
 
     # download
