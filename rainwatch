@@ -24,18 +24,19 @@ import signal
 import optparse
 import operator
 import time
-import socket
-import subprocess
 from datetime import datetime
+from setproctitle import setproctitle
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler,openlog,closelog
 from rwatch import rcfile,deluge,ruleparser,jabber
+from rwatch.util import *
+from rwatch.ssh2 import rainshell
 
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.5"
-    vdate   = "03 Jan 2015"
+    version = "0.10.7"
+    vdate   = "18 Feb 2015"
 
     config = None
     lconfig = None
@@ -55,7 +56,9 @@ class xsetup:
                     'xfer': {
                         'hostname': None,
                         'user': None,
-                        'basepath': ''
+                        'port': 22,
+                        'basepath': '',
+                        'keyfile': None
                     },
                     'notify': {
                         'hostname': None,
@@ -122,68 +125,6 @@ def parse_cli():
 
     return vout
 
-def fmtsize(insize,rate=False,bits=False):
-    """format human-readable file size and xfer rates"""
-    onx = float(abs(insize))
-    for u in ['B','K','M','G','T','P']:
-        if onx < 1024.0:
-            tunit = u
-            break
-        onx /= 1024.0
-    suffix = ""
-    if u != 'B': suffix = "iB"
-    if rate:
-        if bits:
-            suffix = "bps"
-            onx *= 8.0
-        else:
-            suffix += "/sec"
-    if tunit == 'B':
-        ostr = "%3d %s%s" % (onx,tunit,suffix)
-    else:
-        ostr = "%3.01f %s%s" % (onx,tunit,suffix)
-    return ostr
-
-def rexec(optlist,supout=False):
-    """execute command; input a list of options; if `supout` is True, then suppress stderr"""
-    logthis("Executing:",suffix=optlist,loglevel=LL.DEBUG)
-    try:
-        if supout:
-            fout = subprocess.check_output(optlist,stderr=subprocess.STDOUT)
-        else:
-            fout = subprocess.check_output(optlist)
-    except subprocess.CalledProcessError as e:
-        logthis("exec failed:",suffix=e,loglevel=LL.ERROR)
-        fout = None
-    return fout
-
-def libnotify_send(msgText,hname=False,huser=False,msgTimeout=10000,msgHead=False,msgIcon=False):
-    """send libnotify notification to another host via ssh"""
-    # use defaults
-    if not hname: hname = xsetup.config['notify']['hostname']
-    if not huser: huser = xsetup.config['notify']['user']
-
-    # set up notification icon
-    if msgIcon: xicon = "-i '%s'" % (msgIcon)
-    elif msgIcon == False and xsetup.config['notify']['icon']: xicon = "-i '%s'" % (xsetup.config['notify']['icon'])
-    else: xicon = ''
-
-    # if no message header, then use our hostname
-    if msgHead == False: msgHead = socket.gethostname()
-    else: msgHead = [msgHead]
-
-    # escape newlines and such
-    msgText = "'%s'" % (msgText.replace("\n","\\n").replace("\r","\\r").replace("\t","\\t"))
-
-    # get dbus session address
-    dbsout = rexec(['/usr/bin/ssh',hname,'--','ps','aux','|','grep',huser])
-    dbus_addr = re.search('dbus-daemon --fork --session --address=(.+)', dbsout, re.I|re.M).group(1)
-    logthis("Got dbus session:",suffix=dbus_addr,loglevel=LL.VERBOSE)
-
-    # send notification
-    rexec(['/usr/bin/ssh',hname,'--',"DBUS_SESSION_BUS_ADDRESS=\'%s\'" % (dbus_addr),'notify-send','-t',str(msgTimeout),xicon,msgHead,msgText])
-    logthis("Sent libnotify message to remote host",loglevel=LL.VERBOSE)
-
 
 def mode_list():
     global dlx
@@ -231,6 +172,10 @@ def mode_chook(tid):
     # get updated data
     tordata = dlx.getTorrent(tid)
 
+    # establish SSH connection
+    rsh = rainshell(xsetup.config['xfer']['hostname'],xsetup.config['xfer']['user'],xsetup.config['xfer']['keyfile'],int(xsetup.config['xfer']['port']))
+    rsh.jabber(jbx)
+
     # download
     if xsetup.config['xfer']['hostname']:
         # send xfer start notification
@@ -249,7 +194,8 @@ def mode_chook(tid):
             logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
-        rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
+        #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
+        rsh.xfer(tgpath, xsetup.config['xfer']['basepath'])
         xstop = datetime.now()
         logthis("** Transfer complete.",loglevel=LL.INFO)
 
@@ -265,6 +211,7 @@ def mode_chook(tid):
             jbx.sendmsg(xsetup.config['xmpp']['sendto'],"%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr))
 
     # done
+    rsh.close()
     logthis("*** Finished with complete exec hook for",suffix=tordata['name'],loglevel=LL.INFO)
     return True
 
@@ -293,6 +240,9 @@ if __name__ == '__main__':
 
     # parse rules file
     ruleparser.parse()
+
+    # set proc title
+    setproctitle('rainwatch')
 
     # connect to deluge
     dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))

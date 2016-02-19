@@ -69,6 +69,10 @@ class client:
 		"""authorize a JID"""
 		self.clx.Roster.Authorize(xmpp.protocol.JID(jid))
 
+	def set_status(self, status):
+		"""set status message"""
+		self.clx.setStatus(status)
+
 	def __del__(self):
 		self.clx.disconnect()
 		self.connected = False
