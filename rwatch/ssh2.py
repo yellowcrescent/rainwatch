@@ -93,7 +93,7 @@ class rainshell(paramiko.client.SSHClient):
         else:
             rootdir = None
             xname = os.path.basename(rps)
-            flist = [ xname ]
+            flist = [ '/'+xname ]
             totsize = os.lstat(rps).st_size
 
         logthis(">> Xfer [%s] -> [%s]" % (src,dest),loglevel=LL.INFO)
@@ -126,7 +126,7 @@ class rainshell(paramiko.client.SSHClient):
                     return False
 
         # set up xfer_stats
-        self.xfer_stats = { 'xname': xname, 'files_tot': len(flist), 'files_done': 0, 'cur_file': None, 'gtotal': totsize, 'gxfer': 0, 'ttotal': 0, 'txfer': 0 }
+        self.xfer_stats = { 'xname': xname, 'files_tot': len(flist), 'files_done': 0, 'cur_file': None, 'gtotal': totsize, 'gxfer': 0, 'ttotal': 0, 'txfer': 0, 'last_update': 0 }
 
         # copy files
         for xtf in flist:
