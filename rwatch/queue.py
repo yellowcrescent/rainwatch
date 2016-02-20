@@ -203,9 +203,11 @@ def cb_xfer(jdata):
         trate_str = fmtsize(trate,rate=True)
         trate_bstr = fmtsize(trate,rate=True,bits=True)
         jabber.send('sendmsg', { 'jid': conf['xmpp']['sendto'], 'msg': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr) })
+        jabber.send('set_status', { 'show': "chat", 'status': "Ready" })
 
     # done
     rsh.close()
+    return 0
 
 
 def enqueue(xredis,qname,thash,opts={},jid=None,silent=False):
