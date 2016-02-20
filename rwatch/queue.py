@@ -42,7 +42,7 @@ dlx = None
 dadpid = None
 
 def start(qname="xfer"):
-    global rdx, dlx, dadpid, handlers
+    global rdx, dlx, dadpid, handlers, conf
 
     # Fork into its own process
     logthis("Forking...",loglevel=LL.DEBUG)
