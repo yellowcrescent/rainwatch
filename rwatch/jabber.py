@@ -72,7 +72,7 @@ def spawn():
         qiraw = rdx.brpop("jabber_out",5)
         if qiraw:
             try:
-                qmsg = json.loads(qiraw)
+                qmsg = json.loads(qiraw[1])
             except Exception as e:
                 logthis("!! Jabber: Bad JSON data from message. Msg discarded. Error: %s\nraw data:" % (e),suffix=qiraw,loglevel=LL.ERROR)
 
