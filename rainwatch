@@ -24,19 +24,20 @@ import signal
 import optparse
 import operator
 import time
+import requests
 from datetime import datetime
 from setproctitle import setproctitle
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler,openlog,closelog
-from rwatch import rcfile,deluge,ruleparser,jabber
+from rwatch import rcfile,deluge,ruleparser,jabber,daemon
 from rwatch.util import *
 from rwatch.ssh2 import rainshell
 
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.10.7"
-    vdate   = "18 Feb 2015"
+    version = "0.11.0"
+    vdate   = "20 Feb 2015"
 
     config = None
     lconfig = None
@@ -46,7 +47,9 @@ class xsetup:
                         'quiet': False,
                         'list': False,
                         'json': False,
-                        'full': False
+                        'full': False,
+                        'srv': False,
+                        'fdebug': False
                     },
                     'core': {
                         'loglevel': LL.INFO,
@@ -64,6 +67,21 @@ class xsetup:
                         'hostname': None,
                         'user': None,
                         'icon': ""
+                    },
+                    'srv': {
+                        'pidfile': "rainwatch.pid",
+                        'url': "http://localhost:4464",
+                        'iface': "0.0.0.0",
+                        'port': 4464,
+                        'nofork': False,
+                        'debug': False,
+                        'shared_key': ''
+                    },
+                    'redis': {
+                        'host': "localhost",
+                        'port': 6379,
+                        'db': 11,
+                        'prefix': "rainwatch"
                     },
                     'xmpp': {
                         'user': None,
@@ -104,9 +122,13 @@ def parse_cli():
     oparser.add_option('-q', action="store_true", dest="run.quiet", default=False, help="Quiet - suppress log messages (use as first option)")
     oparser.add_option('-i', action="store", dest="run.torid", default=False,metavar="TORID", help="Torrent ID")
 
+    oparser.add_option('-d','--srv', action="store_true", dest="run.srv", default=False, help="Daemon mode")
     oparser.add_option('-l','--list', action="store_true", dest="run.list", default=False, help="List torrents")
     oparser.add_option('-f','--full', action="store_true", dest="run.full", default=False, help="Full output in torrent list")
     oparser.add_option('-j','--json', action="store_true", dest="run.json", default=False, help="Output data as JSON")
+
+    oparser.add_option('--fdebug', action="store_true", dest="run.fdebug", default=False, help="Daemon: Flask debug mode")
+    oparser.add_option('--nofork', action="store_true", dest="srv.nofork", default=False, help="Daemon: Do not fork into background")
 
     options, args = oparser.parse_args(sys.argv[1:])
     vout = vars(options)
@@ -169,49 +191,16 @@ def mode_chook(tid):
         else:
             logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
 
-    # get updated data
-    tordata = dlx.getTorrent(tid)
+    # enqueue
+    qurl = xsetup.config['srv']['url'] + '/api/chook'
+    headset = { 'Content-Type': "application/json", 'WWW-Authenticate': xsetup.config['srv']['shared_key'], 'User-Agent': "rainwatch/"+xsetup.version }
+    rq = requests.post(qurl,headers=headset,data=json.dumps({ 'thash': tid, 'opts': False }))
 
-    # establish SSH connection
-    rsh = rainshell(xsetup.config['xfer']['hostname'],username=xsetup.config['xfer']['user'],keyfile=xsetup.config['xfer']['keyfile'],port=int(xsetup.config['xfer']['port']))
-    rsh.jabber(jbx)
+    if rq.status_code == 201:
+        logthis(">> Queued torrent for transfer",loglevel=LL.INFO)
+    else:
+        logthis("!! Failed to queue for transfer:",suffix=str(rq.status_code)+' '+rq.reason,loglevel=LL.ERROR)
 
-    # download
-    if xsetup.config['xfer']['hostname']:
-        # send xfer start notification
-        if xsetup.config['notify']['user'] and xsetup.config['notify']['hostname']:
-            try:
-                libnotify_send("%s\n\nStarted transfer to incoming." % (tordata['name']))
-            except Exception as e:
-                logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
-
-        # xfer via scp
-        tgpath = "%s/%s" % (tordata['save_path'],tordata['name'])
-        if not os.path.exists(tgpath):
-            logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
-            return False
-        else:
-            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
-        logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath']),loglevel=LL.INFO)
-        xstart = datetime.now()
-        #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (xsetup.config['xfer']['hostname'],xsetup.config['xfer']['basepath'])])
-        rsh.xfer(tgpath, xsetup.config['xfer']['basepath'])
-        xstop = datetime.now()
-        logthis("** Transfer complete.",loglevel=LL.INFO)
-
-        # send xfer complete notification
-        xdelta = xstop - xstart
-        xdelta_str = re.sub('\.[0-9]+$','',str(xdelta))
-        tsize = tordata['total_size']
-        trate = float(tsize) / float(xdelta.seconds)
-        tsize_str = fmtsize(tsize)
-        trate_str = fmtsize(trate,rate=True)
-        trate_bstr = fmtsize(trate,rate=True,bits=True)
-        if jbx:
-            jbx.sendmsg(xsetup.config['xmpp']['sendto'],"%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr))
-
-    # done
-    rsh.close()
     logthis("*** Finished with complete exec hook for",suffix=tordata['name'],loglevel=LL.INFO)
     return True
 
@@ -241,25 +230,21 @@ if __name__ == '__main__':
     # parse rules file
     ruleparser.parse()
 
-    # set proc title
-    setproctitle('rainwatch')
-
-    # connect to deluge
-    dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))
-
-    # connect to jabber
-    if xsetup.config['xmpp']['user'] and xsetup.config['xmpp']['pass']:
-        jbx = jabber.client(xsetup.config['xmpp']['user'], xsetup.config['xmpp']['pass'])
-    else:
-        jbx = None
+    # connect to deluge (for non-daemon stuffs)
+    if not xsetup.config['run']['srv']:
+        dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))
 
     ## process commands
 
-    # get list of torrents
     if xsetup.config['run']['list']:
+        # get list of torrents
         mode_list()
     elif xsetup.config['run']['torid']:
+        # process 'complete' hook
         mode_chook(xsetup.config['run']['torid'])
+    elif xsetup.config['run']['srv']:
+        # start daemon
+        daemon.start(xsetup.config['srv']['iface'],xsetup.config['srv']['port'],xsetup.config['run']['fdebug'])
     else:
         logthis("Nothing to do.",loglevel=LL.WARNING)
 

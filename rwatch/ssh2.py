@@ -23,6 +23,7 @@ import paramiko
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
 from rwatch.util import *
+from rwatch import jabber
 
 class rainshell(paramiko.client.SSHClient):
     """
@@ -168,7 +169,7 @@ class rainshell(paramiko.client.SSHClient):
                 # update jabber status
                 dltot = self.xfer_stats['gxfer'] + self.xfer_stats['txfer']
                 percento = float(dltot) / float(self.xfer_stats['gtotal']) * 100.0
-                self.jbx.set_status("Downloading [%0.01f%% -- %s of %s]: %s" % (percento,fmtsize(dltot),fmtsize(self.xfer_stats['gtotal']),self.xfer_stats['xname']))
+                jabber.send('set_status', { 'status': "Downloading [%0.01f%% -- %s of %s]: %s" % (percento,fmtsize(dltot),fmtsize(self.xfer_stats['gtotal']),self.xfer_stats['xname']) })
             self.xfer_stats['last_update'] = nowtime
 
     def ifexist(self,rpath):
