@@ -74,7 +74,7 @@ def spawn():
             try:
                 qmsg = json.loads(qiraw)
             except Exception as e:
-                logthis("!! Jabber: Bad JSON data from message. Msg discarded. raw data:",suffix=qiraw,loglevel=LL.ERROR)
+                logthis("!! Jabber: Bad JSON data from message. Msg discarded. Error: %s\nraw data:" % (e),suffix=qiraw,loglevel=LL.ERROR)
 
         if qmsg:
             if qmsg.get('method',False) and qmsg.get('params',False):
