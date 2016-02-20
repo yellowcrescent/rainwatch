@@ -176,7 +176,7 @@ def route_chook():
 
     if precheck():
         indata = request.json
-        jobid = enqueue(rdx,"xfer",indata.get('thash',False),indata.get('opts',False))
+        jobid = queue.enqueue(rdx,"xfer",indata.get('thash',False),indata.get('opts',False))
         resp = dresponse({ 'status': "ok", 'message': "Queued as job %s" % (jobid) }, "201 Queued")
     else:
         resp = dresponse(*precheck(rheaders=True))
