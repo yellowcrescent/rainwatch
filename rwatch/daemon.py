@@ -38,9 +38,8 @@ def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
     """
     Start Rainwatch daemon
     """
+    global rdx,conf
     conf = __main__.xsetup.config
-    #shared_key = conf['srv']['shared_key']
-    #logthis(">> Shared Key",suffix=shared_key,loglevel=LL.DEBUG)
 
     # first, fork
     if not conf['srv']['nofork']: dfork()
@@ -172,6 +171,7 @@ def route_auth():
     return dresponse(*precheck(rheaders=True))
 
 def route_chook():
+    global rdx
     logthis(">> Received chook request",loglevel=LL.VERBOSE)
 
     if precheck():
