@@ -98,6 +98,7 @@ def send(method,params={}):
     """
     send command to jabber client process
     """
+    global rdx
     conf = __main__.xsetup.config
 
     # connect to Redis, if not already connected
