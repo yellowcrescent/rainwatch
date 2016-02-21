@@ -52,7 +52,10 @@ def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
     queue.start('xfer')
 
     # spawn jabber handler
-    jabber.spawn()
+    if conf['xmpp']['user'] and conf['xmpp']['pass']:
+        jabber.spawn()
+    else:
+        logthis("!! Not spawning Jabber client, no JID defined in rc file",loglevel=LL.WARNING)
 
     # connect to Redis
     rdx = db.redis({ 'host': conf['redis']['host'], 'port': conf['redis']['port'], 'db': conf['redis']['db'] },prefix=conf['redis']['prefix'])
