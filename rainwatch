@@ -36,8 +36,8 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.3"
-    vdate   = "21 Feb 2015"
+    version = "0.11.4"
+    vdate   = "26 Feb 2015"
 
     config = None
     lconfig = None

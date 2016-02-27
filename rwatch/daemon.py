@@ -26,19 +26,20 @@ from flask import Flask,json,jsonify,make_response,request
 # Logging & Error handling
 from rwatch.logthis import *
 
-from rwatch import queue,jabber,db
+from rwatch import queue,jabber,db,deluge
 from rwatch.util import *
 
 # rainwatch server Flask object
 xsrv = None
 rdx = None
+dlx = None
 conf = None
 
 def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
     """
     Start Rainwatch daemon
     """
-    global rdx,conf
+    global rdx,dlx,xsrv,conf
     conf = __main__.xsetup.config
 
     # first, fork
@@ -60,11 +61,16 @@ def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
     # connect to Redis
     rdx = db.redis({ 'host': conf['redis']['host'], 'port': conf['redis']['port'], 'db': conf['redis']['db'] },prefix=conf['redis']['prefix'])
 
+    # connect to Deluge
+    dlx = deluge.delcon(conf['deluge']['user'], conf['deluge']['pass'], conf['deluge']['hostname'], int(conf['deluge']['port']))
+
     # create flask object, and map API routes
     xsrv = Flask('rainwatch')
     xsrv.add_url_rule('/','root',view_func=route_root,methods=['GET'])
     xsrv.add_url_rule('/api/auth','auth',view_func=route_auth,methods=['GET','POST'])
     xsrv.add_url_rule('/api/chook','chook',view_func=route_chook,methods=['GET','POST','PUT'])
+    xsrv.add_url_rule('/api/torrent/list','torrent_list',view_func=torrent_list,methods=['GET','POST'])
+    xsrv.add_url_rule('/api/torrent/getinfo','torrent_getinfo',view_func=torrent_getinfo,methods=['GET','POST'])
 
     # start flask listener
     logthis("Starting Flask...",loglevel=LL.VERBOSE)
@@ -158,6 +164,17 @@ def pidfile_set():
         logthis("Failed to write data to PID file:",suffix=pfname,loglevel=LL.ERROR)
         failwith(PROCFAIL,"Ensure write permission at the PID file location.")
 
+def make_fail(errorname,message,rcode="400 Bad Request"):
+    return ({ 'status': "error", 'error': errorname, 'message': message }, rcode)
+
+def make_success(indata,rcode="200 OK"):
+    return ({ 'status': "ok", 'result': indata }, rcode)
+
+###############################################################################
+##
+## Routes
+##
+
 def route_root():
     rinfo = {
                 'app': "rainwatch",
@@ -170,8 +187,10 @@ def route_root():
             }
     return dresponse(rinfo)
 
+
 def route_auth():
     return dresponse(*precheck(rheaders=True))
+
 
 def route_chook():
     global rdx
@@ -181,6 +200,35 @@ def route_chook():
         indata = request.json
         jobid = queue.enqueue(rdx,"xfer",indata.get('thash',False),indata.get('opts',False))
         resp = dresponse({ 'status': "ok", 'message': "Queued as job %s" % (jobid) }, "201 Queued")
+    else:
+        resp = dresponse(*precheck(rheaders=True))
+
+    return resp
+
+
+def torrent_list():
+    global rdx, dlx
+
+    if precheck():
+        # get list of torrents
+        resp = dresponse(*make_success(dlx.getTorrentList(filter={})))
+    else:
+        resp = dresponse(*precheck(rheaders=True))
+
+    return resp
+
+
+def torrent_getinfo():
+    global rdx, dlx
+
+    # get list of torrents
+    if precheck():
+        indata = request.json
+        tid = indata.get('id', False)
+        if tid:
+            resp = dresponse(*make_success(dlx.getTorrentList(filter={ 'id': tid },fields=[])))
+        else:
+            resp = dresponse(*make_fail("missing_params", "Required parameter 'id' is missing from request"))
     else:
         resp = dresponse(*precheck(rheaders=True))
 
