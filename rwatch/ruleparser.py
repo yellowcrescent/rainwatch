@@ -229,6 +229,10 @@ def tor_isfile(tdata):
 	else:
 		return False
 
+def list():
+	"""returns rule list"""
+	return { 'rules': rules, 'groups': groups, 'defaults': rdefaults }
+
 def istrue(inval):
 	if inval == '1' or inval.lower() == 'yes' or inval.lower() == 'true' or inval.lower() == 'on':
 		return True

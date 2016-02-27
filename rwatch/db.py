@@ -177,6 +177,9 @@ class redis:
     def count(self):
         return self.rcon.dbsize()
 
+    def lrange(self,qname,start,stop):
+        return self.rcon.lrange(self.rprefix+":"+qname,start,stop)
+
     def llen(self,qname):
         return self.rcon.llen(self.rprefix+":"+qname)
 
