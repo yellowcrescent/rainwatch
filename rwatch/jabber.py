@@ -85,8 +85,11 @@ def spawn():
                 try:
                     # dynamically call the class method
                     getattr(jbx, qmsg['method'])(**qmsg['params'])
+                except IOError as e:
+                    logexc(e, "!! Failed to call method '%s':" % (qmsg.get('method',"[NONE]")))
+                    jbx.reconnect()
                 except Exception as e:
-                    logthis("!! Failed to call method '%s':" % (qmsg.get('method',"[NONE]")),suffix=e,loglevel=LL.ERROR)
+                    logexc(e, "!! Failed to call method '%s':" % (qmsg.get('method',"[NONE]")))
 
         # check if parent is alive
         if not master_alive(dadpid):
@@ -155,30 +158,19 @@ class client:
     acon = None
     rdx = None
     connected = False
+    ccreds = { 'jid': None, 'jpass': None, 'jserver': None, 'jport': None }
 
     def __init__(self, juser, jpass, jres='rainwatch', jserver=None, jport=5222, redis=None, abortfail=True):
-        if jserver: jsx = (jserver,jport)
-        else: jsx = None
-        jid = xmpp.protocol.JID(juser)
+
+        # derive JID
+        jid = xmpp.protocol.JID(juser+'/'+jres)
         self.clx = xmpp.Client(jid.getDomain(),debug=[])
 
-        # if server and port not specified, use the SRV records to determine server name and port
-        crez = self.clx.connect(jsx)
-        if not crez:
-            logthis("Connection to Jabber server failed for",suffix=juser,loglevel=LL.ERROR)
-            return
-        else:
-            self.ccon = crez
-            logthis("Connected to Jabber server via",suffix=crez.upper(),ccode=C.GRN,loglevel=LL.INFO)
+        # save connection data, should we need to reconnect later
+        self.ccreds = { 'jid': jid, 'jpass': jpass, 'jserver': jserver, 'jport': jport }
 
-        # authenticate
-        arez = self.clx.auth(jid.getNode(),jpass,jres)
-        if not arez:
-            logthis("Failed to authenticate to Jabber server for",suffix=juser,loglevel=LL.ERROR)
-            return
-        else:
-            self.acon = arez
-            logthis("Authenticated to Jabber server via",suffix=arez.upper(),ccode=C.GRN,loglevel=LL.INFO)
+        # establish connection
+        self.connect(**self.ccreds)
 
         # store redis connection object
         if redis:
@@ -190,6 +182,37 @@ class client:
         # enable presence
         self.clx.sendInitPresence()
         self.connected = True
+
+    def connect(self, jid, jpass, jres='rainwatch', jserver=None, jport=5222):
+        """connect to jabber server"""
+
+        # check if using explicit server/port,
+        if jserver: jsx = (jserver,jport)
+        else: jsx = None
+
+        # if server and port not specified, use the SRV records to determine server name and port
+        crez = self.clx.connect(jsx)
+        if not crez:
+            logthis("Connection to Jabber server failed for",suffix=jid.getUser(),loglevel=LL.ERROR)
+            return False
+        else:
+            self.ccon = crez
+            logthis("Connected to Jabber server via",suffix=crez.upper(),ccode=C.GRN,loglevel=LL.INFO)
+
+        # authenticate
+        arez = self.clx.auth(jid.getNode(),jpass,jid.getResource)
+        if not arez:
+            logthis("Failed to authenticate to Jabber server for",suffix=juser,loglevel=LL.ERROR)
+            return False
+        else:
+            self.acon = arez
+            logthis("Authenticated to Jabber server via",suffix=arez.upper(),ccode=C.GRN,loglevel=LL.INFO)
+
+
+    def reconnect():
+        """reconnect if the connection has dropped or timed out"""
+        logthis(">> Attempting to re-establish connection to Jabber server...",loglevel=LL.INFO)
+        self.connect(**self.ccreds)
 
     def sendmsg(self, jid, msg):
         """send a message (msg) to a user (jid)"""
@@ -238,5 +261,4 @@ class client:
         self.clx.Process(timeout)
 
     def __del__(self):
-        self.clx.disconnect()
         self.connected = False
