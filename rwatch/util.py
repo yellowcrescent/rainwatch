@@ -14,6 +14,7 @@
 #
 ###############################################################################
 
+import __main__
 import sys
 import os
 import re
@@ -23,7 +24,7 @@ import subprocess
 import socket
 from datetime import datetime
 
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch.logthis import *
 
 def rexec(optlist,supout=False):
     """
@@ -95,3 +96,30 @@ def libnotify_send(msgText,hname=False,huser=False,msgTimeout=10000,msgHead=Fals
     # TODO: we can probably make this use rwatch.ssh2.rainshell eventually...
     rexec(['/usr/bin/ssh',hname,'--',"DBUS_SESSION_BUS_ADDRESS=\'%s\'" % (dbus_addr),'notify-send','-t',str(msgTimeout),xicon,msgHead,msgText])
     logthis("Sent libnotify message to remote host",loglevel=LL.VERBOSE)
+
+
+def git_info():
+    """
+    retrieve git info
+    """
+    # change to directory of rainwatch
+    lastpwd = os.getcwd()
+    os.chdir(os.path.dirname(os.path.realpath(__main__.__file__)))
+
+    # run `git show`
+    ro = rexec(['/usr/bin/git','show'])
+
+    # change back
+    os.chdir(lastpwd)
+
+    # set defaults
+    rvx = { 'ref': None, 'sref': None, 'date': None }
+    if ro:
+        try:
+            cref = re.search('^commit\s*(.+)$',ro,re.I|re.M).group(1)
+            cdate = re.search('^Date:\s*(.+)$',ro,re.I|re.M).group(1)
+            rvx = { 'ref': cref, 'sref': cref[:8], 'date': cdate }
+        except Exception as e:
+            logexc(e, "Unable to parse output from git")
+
+    return rvx

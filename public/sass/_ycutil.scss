@@ -1,0 +1,65 @@
+/**
+ **%%YCDOC/2*******************************************************************
+ **%%vim: set modelines=25:
+ *
+ * ycutil.scss
+ * YellowCrescent SASS Utility Functions
+ *
+ * Copyright (c) 2013-2014 Jacob Hipps/Neo-Retro Group
+ * https://ycnrg.org/
+ * https://neoretro.net/
+ *
+ * Started: 18 May 2014
+ * Updated: 18 May 2014
+ * Revision: r0
+ *
+ * @author		Jacob Hipps - jacob@ycnrg.org
+ * @param 		vim: set ts=4 sw=4 noexpandtab syntax=scss:
+ *
+ *****************************************************************************/
+
+@function uri_encode($instr) {
+	$ostr: "";
+	@for $i from 1 to (str-length($instr) + 1) {
+		$ccis: str-slice($instr,$i,$i);
+		@if $ccis == " " { $ccis: unquote("+"); }
+		$ostr: unquote($ostr) + unquote($ccis);
+	}
+	@return $ostr;
+}
+
+@function google_font_genuri($flist) {
+	$google_fontfam: "";
+	$ffcount: 0;
+	@each $cffam,$cfwts in $flist {
+
+		$csw_list: uri_encode($cffam);
+
+		@if length($cfwts) > 0 {
+			$csw_list: $csw_list + unquote(":");
+			$wll: length($cfwts);
+			@each $xcfwts in $cfwts {
+				$csw_list: $csw_list + unquote($xcfwts);
+				@if $wll > 1 {
+					$csw_list: $csw_list + unquote(",");
+				}
+				$wll: $wll - 1;
+			}
+		}
+
+		@if $ffcount > 0 { $google_fontfam: unquote($google_fontfam) + unquote("|"); }
+		$google_fontfam: unquote($google_fontfam) + unquote($csw_list);
+
+		$ffcount: $ffcount + 1;
+	}
+
+	$google_font_uri: unquote("https://fonts.googleapis.com/css?family=") + unquote($google_fontfam);
+
+	@return $google_font_uri;
+}
+
+@mixin shadow_box($h_off,$v_off,$b_rad,$spread,$xcolor) {
+	-moz-box-shadow:	$h_off $v_off $b_rad $spread $xcolor;
+	-webkit-box-shadow:	$h_off $v_off $b_rad $spread $xcolor;
+	box-shadow:			$h_off $v_off $b_rad $spread $xcolor;
+}

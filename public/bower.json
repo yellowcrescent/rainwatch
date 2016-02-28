@@ -1,0 +1,26 @@
+{
+  "name": "rainwatch-web",
+  "version": "0.11.0",
+  "authors": [
+    "jacob <jacob@ycnrg.org>"
+  ],
+  "description": "rainwatch web interface",
+  "license": "MIT",
+  "homepage": "https://ycnrg.org/",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "^1.5.0",
+    "angular-strap": "^2.3.7",
+    "angular-route": "^1.5.0",
+    "angular-animate": "^1.5.0",
+    "angular-busy": "^4.1.3",
+    "bootstrap": "^3.3.6",
+    "angular-motion": "^0.4.3"
+  }
+}

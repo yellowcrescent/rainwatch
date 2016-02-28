@@ -36,9 +36,10 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.5"
-    vdate   = "26 Feb 2015"
+    version = "0.11.6"
+    vdate   = "28 Feb 2015"
 
+    gitinfo = {}
     config = None
     lconfig = None
     defaults = {
@@ -213,6 +214,9 @@ if __name__ == '__main__':
     # Show banner
     if len(sys.argv) < 2 or sys.argv[1] != '--version' and not (len(sys.argv[1]) > 1 and sys.argv[1][1] == 'q'):
         show_banner()
+
+    # Check git info
+    xsetup.gitinfo = git_info()
 
     # Set default loglevel
     loglevel(xsetup.defaults['core']['loglevel'])

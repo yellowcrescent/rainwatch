@@ -1,0 +1,25 @@
+/**
+ **%%YCDOC/2*******************************************************************
+ **%%vim: set modelines=15:
+ *
+ * rainwatch
+ * Typography
+ *
+ * Copyright (c) 2016 Jacob Hipps/Neo-Retro Group
+ * https://ycnrg.org/
+ *
+ * @author		Jacob Hipps - jacob@ycnrg.org
+ * @param 		vim: set ts=4 sw=4 noexpandtab syntax=scss:
+ *
+ *****************************************************************************/
+
+$tg_fonts	:	(
+					("Patua One", ()),
+					("Indie Flower", ()),
+					("Oxygen", (300,400,700)),
+					("Cabin Condensed", (400,700)),
+					("Alegreya Sans", (400,700,800))
+				);
+
+// Generate Google Fonts URI, then import the generated fonts file
+@import url(google_font_genuri($tg_fonts));

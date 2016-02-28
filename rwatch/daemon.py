@@ -66,7 +66,8 @@ def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
 
     # create flask object, and map API routes
     xsrv = Flask('rainwatch')
-    xsrv.add_url_rule('/','root',view_func=route_root,methods=['GET'])
+    xsrv.add_url_rule('/','root',view_func=route_root,methods=['GET']) # same as /api/info
+    xsrv.add_url_rule('/api/info','root',view_func=route_root,methods=['GET','POST'])
     xsrv.add_url_rule('/api/auth','auth',view_func=route_auth,methods=['GET','POST'])
     xsrv.add_url_rule('/api/chook','chook',view_func=route_chook,methods=['GET','POST','PUT'])
     xsrv.add_url_rule('/api/torrent/list','torrent_list',view_func=torrent_list,methods=['GET','POST'])
@@ -203,7 +204,8 @@ def route_root():
                 'date': __main__.xsetup.vdate,
                 'author': "J. Hipps <jacob@ycnrg.org>",
                 'copyright': "Copyright (c) 2016 J. Hipps/Neo-Retro Group",
-                'license': "MIT"
+                'license': "MIT",
+                'git': __main__.xsetup.gitinfo
             }
     return dresponse(rinfo,"212 Version Info")
 

@@ -1,0 +1,40 @@
+/**
+ ******************************************************************************
+ **vim: set ts=4 sw=4 noexpandtab syntax=scss:
+ *
+ * rainwatch: rweb.scss
+ * Global top-level style, typography, definitions
+ *
+ * Copyright (c) 2016 Jacob Hipps/Neo-Retro Group
+ * https://ycnrg.org/
+ *
+ * @author		Jacob Hipps - jacob@ycnrg.org
+ *
+ *****************************************************************************/
+
+@import "_ycutil.scss";
+@import "_transition.scss";
+@import "_type.scss";
+
+.navbar-brand {
+	font-family: "Indie Flower";
+	font-size: 36px;
+	text-shadow: 2px 2px rgba(32, 32, 32, 0.4);
+}
+
+.rw-view {
+	overflow: hidden;
+	width: 1150px;
+	min-height: 600px;
+	padding: 0px;
+	margin: 0 auto;
+	margin-top: 90px;
+
+	&-overlay {
+		background-image: linear-gradient(rgba(10, 10, 10, 0.5), rgba(60, 60, 60, 0.8));
+		overflow: hidden;
+		width: 100%;
+		height: 100%;
+	}
+}
+
