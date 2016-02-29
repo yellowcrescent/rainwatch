@@ -51,7 +51,7 @@ class delcon:
 			logthis("Error calling core.get_torrent_status:",suffix=e,loglevel=LL.ERROR)
 			return False
 
-	def getTorrentList(self, filter={}, fields=['name','progress','tracker_host','eta','paused']):
+	def getTorrentList(self, filter={}, fields=['name','progress','tracker_host','eta','total_size','total_done','state','time_added']):
 		"""get list of torrents"""
 		try:
 			return self.xcon.call('core.get_torrents_status',filter,fields)

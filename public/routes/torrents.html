@@ -1,0 +1,31 @@
+<!-- routes/home -->
+
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th class="tortab-name">Name</th>
+      <th class="tortab-progress">Progress</th>
+      <th class="tortab-tracker">Tracker</th>
+      <th class="tortab-added">Added</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-repeat="kv in torlist">
+      <td>
+        <a ng-href="#/torview/{{kv._id}}">{{kv.name}}</a>
+      </td>
+      <td>
+        <div class="progress">
+          <div class="progress-bar" style="width: {{kv.progress}}%">{{kv.progress}} %</div>
+        </div>
+      </td>
+      <td>{{kv.tracker_host}}</td>
+      <td>
+        {{kv.date_string}}<br/>
+        {{kv.time_string}}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<!--//routes/home -->

@@ -205,7 +205,8 @@ def route_root():
                 'author': "J. Hipps <jacob@ycnrg.org>",
                 'copyright': "Copyright (c) 2016 J. Hipps/Neo-Retro Group",
                 'license': "MIT",
-                'git': __main__.xsetup.gitinfo
+                'git': __main__.xsetup.gitinfo,
+                'bw_graph': __main__.xsetup.config['web']['bw_graph']
             }
     return dresponse(rinfo,"212 Version Info")
 

@@ -36,8 +36,8 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.6"
-    vdate   = "28 Feb 2015"
+    version = "0.11.7"
+    vdate   = "29 Feb 2015"
 
     gitinfo = {}
     config = None
@@ -95,6 +95,9 @@ class xsetup:
                         'pass': "",
                         'hostname': "localhost",
                         'port': 58846
+                    },
+                    'web': {
+                        'bw_graph': None
                     }
                }
 
