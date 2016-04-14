@@ -166,7 +166,7 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
 def unify(indata):
     """coerce input data to unicode string"""
     if not isinstance(indata, str) and not isinstance(indata, unicode):
-        indata_str = str(suffix).decode('utf-8')
+        indata_str = str(indata).decode('utf-8')
     else:
         indata_str = indata
 
