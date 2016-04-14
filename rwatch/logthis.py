@@ -125,9 +125,9 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
         elif loglevel == LL.WARNING: ccode = C.YEL
         elif loglevel == LL.PROMPT: ccode = C.WHT
         else: ccode = ""
-    if prefix: zline += C.WHT + unicode(prefix.decode('utf-8')) + u": " + C.OFF
-    zline += ccode + unicode(logline.decode('utf-8')) + C.OFF
-    if suffix: zline += u" " + C.CYN + unicode(suffix.decode('utf-8')) + C.OFF
+    if prefix: zline += C.WHT + prefix + u": " + C.OFF
+    zline += ccode + logline + C.OFF
+    if suffix: zline += u" " + C.CYN + suffix + C.OFF
 
     # get traceback info
     lframe = inspect.stack()[1][0]
