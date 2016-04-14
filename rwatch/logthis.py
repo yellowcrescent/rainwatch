@@ -175,7 +175,7 @@ def unify(indata):
 def logexc(e,msg,prefix=None):
     """log exception"""
     if msg: msg += ": "
-    suffix = C.WHT + "[" + C.YEL + str(e.__class__.__name__) + C.WHT + "] " + C.YEL + str(e)
+    suffix = C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e)
     logthis(msg,LL.ERROR,prefix,suffix)
 
 def openlog(fname="rainwatch.log"):
@@ -204,11 +204,11 @@ def closelog():
 def writelog(logmsg):
     global loghand
     if loghand:
-        loghand.write("[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"),decolor(logmsg)))
+        loghand.write(u"[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"),decolor(logmsg)))
         loghand.flush()
 
 def decolor(instr):
-    return re.sub('\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)','',instr)
+    return re.sub(u'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)',u'',instr)
 
 def loglevel(newlvl=None):
     global g_loglevel
@@ -222,7 +222,7 @@ def failwith(etype,errmsg):
     raise xbError(etype)
 
 def exceptionHandler(exception_type, exception, traceback):
-    print "%s: %s" % (exception_type.__name__, exception)
+    print u"%s: %s" % (exception_type.__name__, exception)
 
 def print_r(ind):
     return json.dumps(ind,indent=4,separators=(',', ': '))
