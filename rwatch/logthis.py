@@ -119,15 +119,15 @@ loghand = None
 def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
     global g_loglevel
 
-    zline = ''
+    zline = u''
     if not ccode:
         if loglevel == LL.ERROR: ccode = C.RED
         elif loglevel == LL.WARNING: ccode = C.YEL
         elif loglevel == LL.PROMPT: ccode = C.WHT
         else: ccode = ""
-    if prefix: zline += C.WHT + unicode(prefix) + ": " + C.OFF
-    zline += ccode + logline + C.OFF
-    if suffix: zline += " " + C.CYN + unicode(suffix) + C.OFF
+    if prefix: zline += C.WHT + unicode(prefix.decode('utf-8')) + u": " + C.OFF
+    zline += ccode + unicode(logline.decode('utf-8')) + C.OFF
+    if suffix: zline += u" " + C.CYN + unicode(suffix.decode('utf-8')) + C.OFF
 
     # get traceback info
     lframe = inspect.stack()[1][0]
@@ -148,11 +148,11 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
         lfunc = "(main)"
 
     if g_loglevel > LL.INFO:
-        dbxmod = '%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
+        dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
     else:
         dbxmod = ''
 
-    finline = '%s%s<%s>%s %s%s\n' % (dbxmod,C.RED,LL.lname[loglevel],C.WHT,zline,C.OFF)
+    finline = u'%s%s<%s>%s %s%s\n' % (dbxmod,C.RED,LL.lname[loglevel],C.WHT,zline,C.OFF)
 
     # write log message
     # TODO: add syslog (/dev/log) functionality
