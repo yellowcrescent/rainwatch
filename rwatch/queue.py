@@ -186,7 +186,7 @@ def cb_xfer(jdata):
             logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
             return False
         else:
-            logthis(">> Target path:",suffix=tgpath.decode('utf-8'),loglevel=LL.INFO)
+            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf['xfer']['hostname'],conf['xfer']['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
         #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (conf['xfer']['hostname'],conf['xfer']['basepath'])])
