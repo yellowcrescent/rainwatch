@@ -181,7 +181,7 @@ def cb_xfer(jdata):
                 logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
 
         # xfer via scp
-        tgpath = u"%s/%s" % (tordata['save_path'].decode('utf-8'),tordata['name'].decode('utf-8'))
+        tgpath = u"%s/%s" % (str(tordata['save_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
         if not os.path.exists(tgpath):
             logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
             return False
