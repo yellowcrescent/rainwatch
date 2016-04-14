@@ -24,6 +24,7 @@ import logging.handlers
 import signal
 import json
 import re
+import codecs
 from datetime import datetime
 
 class C:
@@ -182,7 +183,7 @@ def openlog(fname="rainwatch.log"):
     global loghand
     prxname = os.path.basename(sys.argv[0])
     try:
-        loghand = open(fname,'a')
+        loghand = codecs.open(fname,'a','utf-8')
         writelog("Logging started.\n")
         writelog("%s - Version %s (%s)\n" % (prxname,__main__.xsetup.version,__main__.xsetup.vdate))
         return True
