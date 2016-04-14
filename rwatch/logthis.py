@@ -124,10 +124,10 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
         if loglevel == LL.ERROR: ccode = C.RED
         elif loglevel == LL.WARNING: ccode = C.YEL
         elif loglevel == LL.PROMPT: ccode = C.WHT
-        else: ccode = ""
-    if prefix: zline += C.WHT + prefix + u": " + C.OFF
-    zline += ccode + logline + C.OFF
-    if suffix: zline += u" " + C.CYN + suffix + C.OFF
+        else: ccode = u""
+    if prefix: zline += C.WHT + unify(prefix) + u": " + C.OFF
+    zline += ccode + unify(logline) + C.OFF
+    if suffix: zline += u" " + C.CYN + unify(suffix) + C.OFF
 
     # get traceback info
     lframe = inspect.stack()[1][0]
@@ -139,13 +139,13 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
 
     if mod:
         lmodname = str(mod.__name__)
-        xmessage = " "
+        xmessage = u" "
     else:
         lmodname = str(__name__)
         xmessage = str(data)
-    if lmodname == "__main__":
-        lmodname = "yc_cpx"
-        lfunc = "(main)"
+    if lmodname == u"__main__":
+        lmodname = u"rainwatch"
+        lfunc = u"(main)"
 
     if g_loglevel > LL.INFO:
         dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
@@ -162,6 +162,15 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
 
     # write to logfile
     writelog(finline)
+
+def unify(indata):
+    """coerce input data to unicode string"""
+    if not isinstance(indata, str) and not isinstance(indata, unicode):
+        indata_str = str(suffix).decode('utf-8')
+    else:
+        indata_str = indata
+
+    return indata_str
 
 def logexc(e,msg,prefix=None):
     """log exception"""
