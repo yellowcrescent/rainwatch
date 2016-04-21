@@ -29,7 +29,7 @@ from datetime import datetime
 from setproctitle import setproctitle
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler,openlog,closelog
-from rwatch import rcfile,deluge,ruleparser,jabber,daemon
+from rwatch import rcfile,deluge,ruleparser,jabber,daemon,tclient
 from rwatch.util import *
 from rwatch.ssh2 import rainshell
 
@@ -55,7 +55,8 @@ class xsetup:
                     'core': {
                         'loglevel': LL.INFO,
                         'logfile': "rainwatch.log",
-                        'rules': 'rainwatch.rules'
+                        'rules': "rainwatch.rules",
+                        'tclient': "deluge"
                     },
                     'xfer': {
                         'hostname': None,
@@ -95,6 +96,9 @@ class xsetup:
                         'pass': "",
                         'hostname': "localhost",
                         'port': 58846
+                    },
+                    'rtorrent': {
+                        'uri': "http://localhost:5000"
                     },
                     'web': {
                         'bw_graph': None
@@ -238,8 +242,8 @@ if __name__ == '__main__':
     ruleparser.parse()
 
     # connect to deluge (for non-daemon stuffs)
-    if not xsetup.config['run']['srv']:
-        dlx = deluge.delcon(xsetup.config['deluge']['user'], xsetup.config['deluge']['pass'], xsetup.config['deluge']['hostname'], int(xsetup.config['deluge']['port']))
+    if not xsetup.config.run['srv']:
+        dlx = tclient.TorrentClient(xsetup.config)
 
     ## process commands
 

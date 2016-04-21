@@ -22,8 +22,8 @@ import signal
 import codecs
 import ConfigParser
 
-# Logging
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r
+from rwatch.logthis import *
+from rwatch.util import *
 
 # RCfile list
 rcfiles = [ './rainwatch.conf', '~/.rainwatch/rainwatch.conf', '~/.rainwatch', '/etc/rainwatch.conf' ]
@@ -227,5 +227,5 @@ def loadConfig(xtraConf=None,cliopts=None):
     rcfile,rci = parse(xtraConf)
     cxopt = optexpand(cliopts)
     optrc = merge(rci,cxopt)
-    __main__.xsetup.config = optrc
+    __main__.xsetup.config = XConfig(optrc)
     __main__.xsetup.lconfig = rcfile

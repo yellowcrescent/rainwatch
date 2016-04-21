@@ -26,43 +26,41 @@ from flask import Flask,json,jsonify,make_response,request
 # Logging & Error handling
 from rwatch.logthis import *
 
-from rwatch import queue,jabber,db,deluge,ruleparser
+from rwatch import queue,jabber,db,ruleparser,tclient
 from rwatch.util import *
 
 # rainwatch server Flask object
 xsrv = None
 rdx = None
 dlx = None
-conf = None
 
-def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
+def start(xconfig):
     """
     Start Rainwatch daemon
     """
-    global rdx,dlx,xsrv,conf
-    conf = __main__.xsetup.config
+    global rdx,dlx,xsrv
 
     # first, fork
-    if not conf['srv']['nofork']: dfork()
+    if not xconfig.srv['nofork']: dfork()
 
     # set process title
-    setproctitle("rainwatch: master process (%s:%d)" % (bind_ip, bind_port))
+    setproctitle("rainwatch: master process (%s:%d)" % (xconfig.srv['iface'], xconfig.srv['port']))
     pidfile_set()
 
     # spawn queue runners
     queue.start('xfer')
 
     # spawn jabber handler
-    if conf['xmpp']['user'] and conf['xmpp']['pass']:
+    if xconfig.xmpp['user'] and xconfig.xmpp['pass']:
         jabber.spawn()
     else:
         logthis("!! Not spawning Jabber client, no JID defined in rc file",loglevel=LL.WARNING)
 
     # connect to Redis
-    rdx = db.redis({ 'host': conf['redis']['host'], 'port': conf['redis']['port'], 'db': conf['redis']['db'] },prefix=conf['redis']['prefix'])
+    rdx = db.redis({ 'host': xconfig.redis['host'], 'port': xconfig.redis['port'], 'db': xconfig.redis['db'] },prefix=xconfig.redis['prefix'])
 
-    # connect to Deluge
-    dlx = deluge.delcon(conf['deluge']['user'], conf['deluge']['pass'], conf['deluge']['hostname'], int(conf['deluge']['port']))
+    # connect to torrent daemon
+    dlx = tclient.TorrentClient(xconfig)
 
     # create flask object, and map API routes
     xsrv = Flask('rainwatch')
@@ -77,7 +75,7 @@ def start(bind_ip="0.0.0.0",bind_port=4464,fdebug=False):
 
     # start flask listener
     logthis("Starting Flask...",loglevel=LL.VERBOSE)
-    xsrv.run(bind_ip,bind_port,fdebug,use_evalex=False)
+    xsrv.run(xconfig.srv['iface'], xconfig.srv['port'], xconfig.run['fdebug'], use_evalex=False)
 
 def dfork():
     """Fork into the background"""
@@ -206,7 +204,7 @@ def route_root():
                 'copyright': "Copyright (c) 2016 J. Hipps/Neo-Retro Group",
                 'license': "MIT",
                 'git': __main__.xsetup.gitinfo,
-                'bw_graph': __main__.xsetup.config['web']['bw_graph']
+                'bw_graph': __main__.xsetup.config.web['bw_graph']
             }
     return dresponse(rinfo,"212 Version Info")
 
