@@ -22,13 +22,54 @@ import signal
 import optparse
 import operator
 import time
-import collections
 import xmlrpclib
+from collections import defaultdict,deque
 from urlparse import urlparse
 
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch.logthis import *
 
-class multicall(collections.deque):
+## tinfo remappings
+
+map_tinfo = defaultdict(lambda: None, {
+                'd.hash': "hash",
+                'd.name': "name",
+                'd.base_path': "path",
+                'd.directory_base': "base_path",
+                'd.creation_date': "time_added",
+                'd.message': "message",
+                'd.size_bytes': "total_size",
+                'd.completed_bytes': "completed_size",
+                'd.ratio': "ratio",
+                'd.up.total': "uploaded",
+                'd.down.total': "downloaded",
+                'd.up.rate': "upload_rate",
+                'd.down.rate': "download_rate",
+                'd.peers_connected': "connected_peers",
+                'd.peers_complete': "connected_seeds",
+                'd.is_private': "private",
+                'd.size_files': "file_count",
+                'd.size_chunks': "piece_count"
+            })
+
+map_tinfo_files = defaultdict(lambda: None, {
+                'f.path': "path",
+                'f.offset': "offset",
+                'f.size_bytes': "size",
+                'f.priority': "priority"
+            })
+
+map_tinfo_trackers = defaultdict(lambda: None, {
+                't.failed_counter': "fail_count",
+                't.success_counter': "success_count",
+                't.url': "url",
+                't.is_enabled': "enabled"
+            })
+
+## rtorrent enum types
+rtorrent_tracker_types = (None,'http','udp','dht')
+
+
+class multicall(deque):
     """RPC system.multicall wrapper"""
     xrpc = None
 
@@ -115,28 +156,145 @@ class rtcon:
     def getTorrent(self, torid):
         """get info on a particular torrent"""
         try:
-            return self.xcon.call('core.get_torrent_status',torid,[])
-        except Exception as e:
-            logthis("Error calling core.get_torrent_status:",suffix=e,loglevel=LL.ERROR)
-            return False
-
-    def getTorrentList(self, filter=None):
-        """get list of torrents"""
-        try:
-            tlist = self.xcon.d.multicall(("main",'d.name=','d.hash=','d.completed_bytes=','d.size_bytes=','d.creation_date=','d.complete=','d.is_active=','d.is_hash_checking=','d.state='))
+            traw = self.__d_multicall_single(torid, ("d.hash","d.name","d.base_path","d.directory_base","d.creation_date","d.message","d.size_bytes","d.completed_bytes","d.ratio","d.up.total","d.down.total","d.up.rate","d.down.rate","d.peers_connected","d.peers_complete","d.is_private","d.complete","d.is_active","d.is_hash_checking","d.state","d.size_files","d.size_chunks"))
+            logthis("traw:",suffix=traw,loglevel=LL.DEBUG2)
         except Exception as e:
             logthis("Error calling d.multicall:",suffix=e,loglevel=LL.ERROR)
             return False
 
-        ttv = {}
-        for tt in tlist:
-            try:
-                ttracker = re.sub(':[0-9]+$','',urlparse(self.xcon.t.get_url(tt[1],0)).netloc)
-            except:
-                ttracker = None
-            ttv[tt[1]] = { 'name': tt[0], 'tracker_host': ttracker, 'time_added': tt[4], 'progress': float(tt[2] / tt[3]) * 100.0, 'eta': None, 'state': self.__statusLookup(self,*tt[5:8]), 'total_size': tt[3], 'total_done': tt[2] }
+        # remap values
+        otor = { map_tinfo[tk]: tv for tk, tv in traw.items() }
+        if otor.has_key(None): del(otor[None])
+        logthis("remap:",suffix=otor,loglevel=LL.DEBUG2)
 
-        return ttv
+        # get files
+        flist = []
+        fraw = self.__f_multicall(torid, ("f.path","f.offset","f.size_bytes","f.completed_chunks","f.size_chunks","f.priority"))
+        for tk, td in enumerate(fraw):
+            # remap
+            tfile = { map_tinfo_files[ik]: iv for ik, iv in td.items() }
+            if tfile.has_key(None): del(tfile[None])
+            # extrapolate
+            tfile['index'] = tk
+            tfile['progress'] = (float(td['f.completed_chunks']) / float(td['f.size_chunks'])) * 100.0
+            flist.append(tfile)
+
+        otor['files'] = tuple(flist)
+
+        # get trackers
+        tlist = []
+        rraw = self.__t_multicall(torid, ("t.failed_counter","t.success_counter","t.url","t.type","t.is_enabled"))
+        for tk, td in enumerate(rraw):
+            # remap
+            track = { map_tinfo_trackers[ik]: iv for ik, iv in td.items() }
+            if track.has_key(None): del(track[None])
+            # extrapolate
+            track['type'] = rtorrent_tracker_types[int(td['t.type'])]
+            tlist.append(track)
+
+        otor['trackers'] = tuple(tlist)
+
+        # set extrapolated values
+        otor['progress'] = float(traw['d.completed_bytes']) / float(traw['d.size_bytes']) * 100.0
+        otor['state'] = self.__statusLookup(traw['d.complete'],traw['d.is_active'],traw['d.is_hash_checking'],traw['d.state'])
+        otor['ratio'] = float(otor['ratio']) / 1000.0
+        otor['hash'] = otor['hash'].lower()
+        otor['private'] = bool(otor['private'])
+
+        # terrible ETA calculation
+        if not traw['d.complete'] and traw['d.down.rate'] > 0:
+            otor['eta'] = int(float(traw['d.size_bytes'] - traw['d.completed_bytes']) / float(traw['d.down.rate']))
+        else:
+            otor['eta'] = 0
+
+        try:
+            otor['tracker_host'] = re.sub(':[0-9]+$','',urlparse(tlist[0]['url']).netloc)
+        except:
+            otor['tracker_host'] = None
+
+        return otor
+
+    def getTorrentList(self, filter=None, full=False):
+        """get list of torrents; setting full=True will return all fields for all torrents"""
+        if full:
+            fields = ("d.hash","d.name","d.base_path","d.directory_base","d.creation_date","d.message",
+                      "d.size_bytes","d.completed_bytes","d.ratio","d.up.total","d.down.total",
+                      "d.up.rate","d.down.rate","d.peers_connected","d.peers_complete","d.is_private",
+                      "d.complete","d.is_active","d.is_hash_checking","d.state","d.size_files","d.size_chunks")
+        else:
+            fields = ("d.name","d.hash","d.completed_bytes","d.size_bytes","d.creation_date",
+                      "d.complete","d.is_active","d.is_hash_checking","d.state","d.down.rate")
+
+        try:
+            traw = self.__d_multicall("main", fields)
+        except Exception as e:
+            logthis("Error calling d.multicall:",suffix=e,loglevel=LL.ERROR)
+            return False
+
+        tlist = {}
+        for ttor in traw:
+            # remap values
+            otor = { map_tinfo[tk]: tv for tk, tv in ttor.items() }
+            if otor.has_key(None): del(otor[None])
+            logthis("remapped:",suffix=otor,loglevel=LL.DEBUG2)
+
+            if full:
+                torid = ttor['d.hash']
+
+                # get files
+                flist = []
+                fraw = self.__f_multicall(torid, ("f.path","f.offset","f.size_bytes","f.completed_chunks","f.size_chunks","f.priority"))
+                for tk, td in enumerate(fraw):
+                    # remap
+                    tfile = { map_tinfo_files[ik]: iv for ik, iv in td.items() }
+                    if tfile.has_key(None): del(tfile[None])
+                    # extrapolate
+                    tfile['index'] = tk
+                    tfile['progress'] = (float(td['f.completed_chunks']) / float(td['f.size_chunks'])) * 100.0
+                    flist.append(tfile)
+
+                otor['files'] = tuple(flist)
+
+                # get trackers
+                rlist = []
+                rraw = self.__t_multicall(torid, ("t.failed_counter","t.success_counter","t.url","t.type","t.is_enabled"))
+                for tk, td in enumerate(rraw):
+                    # remap
+                    track = { map_tinfo_trackers[ik]: iv for ik, iv in td.items() }
+                    if track.has_key(None): del(track[None])
+                    # extrapolate
+                    track['type'] = rtorrent_tracker_types[int(td['t.type'])]
+                    rlist.append(track)
+
+                otor['trackers'] = tuple(rlist)
+
+            # set extrapolated values
+            otor['progress'] = float(ttor['d.completed_bytes']) / float(ttor['d.size_bytes']) * 100.0
+            otor['state'] = self.__statusLookup(ttor['d.complete'],ttor['d.is_active'],ttor['d.is_hash_checking'],ttor['d.state'])
+            otor['hash'] = otor['hash'].lower()
+
+            if full:
+                otor['ratio'] = float(otor['ratio']) / 1000.0
+                otor['private'] = bool(otor['private'])
+
+            # terrible ETA calculation
+            if not ttor['d.complete'] and ttor['d.down.rate'] > 0:
+                otor['eta'] = int(float(ttor['d.size_bytes'] - ttor['d.completed_bytes']) / float(ttor['d.down.rate']))
+            else:
+                otor['eta'] = 0
+
+            try:
+                if full:
+                    tracker_url = tlist[0]['url']
+                else:
+                    tracker_url = self.xcon.t.get_url(ttor['d.hash'],0)
+                otor['tracker_host'] = re.sub(':[0-9]+$','',urlparse(tracker_url).netloc)
+            except:
+                otor['tracker_host'] = None
+
+            tlist[ttor['d.hash'].lower()] = otor
+
+        return tlist
 
     def renameFolder(self, torid, newname):
         """rename torrent directory name"""
@@ -192,10 +350,62 @@ class rtcon:
             logthis("Failed to move torrent storage:",suffix=e,loglevel=LL.ERROR)
             return False
 
+    def __d_multicall_single(self,hashid,calls):
+        """run list of calls against single torrent"""
+        # queue up calls
+        mcx = multicall(self.xcon)
+        for tc in calls:
+            mcx.q(tc, hashid)
+
+        # then execute
+        mcraw = mcx.run()
+        mcres = { calls[ikey]: ival for ikey, ival in enumerate(mcraw) }
+
+        return mcres
+
+    def __d_multicall(self,view,calls):
+        """get list of torrents in specified view; return a dict with corresponding key-value pairs"""
+        # create tuple with view and list of calls with an '=' appended to them
+        # then execute d.multicall
+        mcraw = self.xcon.d.multicall(tuple([view] + map(lambda x: "%s=" % (x), calls)))
+
+        # create dict with "callname: result" structure
+        mcres = []
+        for td in mcraw:
+            mcres.append({ calls[ikey]: ival for ikey, ival in enumerate(td) })
+
+        return tuple(mcres)
+
+    def __t_multicall(self,hashid,calls):
+        """get list of tracker attribs for specified hashid; return a dict with corresponding key-value pairs"""
+        # create tuple with view and list of calls with an '=' appended to them
+        # then execute t.multicall; this call requires a dummy argument in the first index of second arg
+        mcraw = self.xcon.t.multicall(hashid, tuple([0] + map(lambda x: "%s=" % (x), calls)))
+
+        # create dict with "callname: result" structure
+        mcres = []
+        for td in mcraw:
+            mcres.append({ calls[ikey]: ival for ikey, ival in enumerate(td) })
+
+        return tuple(mcres)
+
+    def __f_multicall(self,hashid,calls):
+        """get list of file attribs for specified hashid; return a dict with corresponding key-value pairs"""
+        # create tuple with view and list of calls with an '=' appended to them
+        # then execute f.multicall; this call requires a dummy argument in the first index of second arg
+        mcraw = self.xcon.f.multicall(hashid, tuple([0] + map(lambda x: "%s=" % (x), calls)))
+
+        # create dict with "callname: result" structure
+        mcres = []
+        for td in mcraw:
+            mcres.append({ calls[ikey]: ival for ikey, ival in enumerate(td) })
+
+        return tuple(mcres)
+
     def __statusLookup(self,complete,active,hashing,state):
         """produce status text based upon status bits"""
         if not state: tstatus = "Not Started/Queued"
-        elif hashin: tstatus = "Checking"
+        elif hashing: tstatus = "Checking"
         elif not complete and not active: tstatus = "Paused"
         elif not complete and active: tstatus = "Downloading"
         elif complete and not active: tstatus = "Complete"

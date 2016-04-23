@@ -25,7 +25,7 @@ import time
 from collections import defaultdict
 from deluge_client import DelugeRPCClient
 
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch.logthis import *
 
 ## tinfo remappings
 
@@ -104,19 +104,26 @@ class delcon:
         """get info on a particular torrent"""
         try:
             interdata = self.xcon.call('core.get_torrent_status',torid,[])
-            return self.__remap_tinfo_all(interdata)
         except Exception as e:
-            logthis("Error calling core.get_torrent_status:",suffix=e,loglevel=LL.ERROR)
+            logexc(e,"Error calling core.get_torrents_status")
             return False
 
-    def getTorrentList(self, filter={}, fields=['name','progress','tracker_host','eta','total_size','total_done','state','time_added']):
-        """get list of torrents"""
+        return self.__remap_tinfo(interdata)
+
+    def getTorrentList(self, filter={}, full=False):
+        """get list of torrents; setting full=True will return all fields for all torrents"""
+        if full:
+            fields = []
+        else:
+            fields = ['name','progress','tracker_host','eta','total_size','total_done','state','time_added']
+
         try:
             interdata = self.xcon.call('core.get_torrents_status',filter,fields)
-            return self.__remap_tinfo_all(interdata)
         except Exception as e:
-            logthis("Error calling core.get_torrents_status:",suffix=e,loglevel=LL.ERROR)
+            logexc(e,"Error calling core.get_torrents_status")
             return False
+
+        return self.__remap_tinfo_all(interdata)
 
     def renameFolder(self, torid, newname):
         """rename torrent directory name"""
@@ -158,22 +165,22 @@ class delcon:
             logthis("Failed to move torrent storage:",suffix=e,loglevel=LL.ERROR)
             return False
 
-    def __remap_tinfo_all(inlist):
+    def __remap_tinfo_all(self, inlist):
         """remap dict of deluge torrents to rainwatch tinfo schema"""
         listout = {}
         for tkey, tdata in inlist.iteritems():
             listout[tkey] = self.__remap_tinfo(tdata)
         return listout
 
-    def __remap_tinfo(indata):
+    def __remap_tinfo(self, indata):
         """remap deluge-specific schema to rainwatch tinfo schema"""
         # remap most values
         newdata = { map_tinfo[ikey]: ival for ikey, ival in indata.items() }
-        del(newdata[None])
+        if newdata.has_key(None): del(newdata[None])
 
         # set other unmapped or extrapolated values
         if indata.has_key('save_path') and indata.has_key('name'):
-            newdata['path'] = u"%s/%s" % (indata['save_path'], indata['name'])
+            newdata['path'] = "%s/%s" % (indata['save_path'], indata['name'])
 
         # build file list
         if indata.has_key('files'):
@@ -181,8 +188,9 @@ class delcon:
             for tnum, tf in enumerate(indata['files']):
                 # remap file object
                 newfile = { map_tinfo_files[tfk]: tfv for tfk, tfv in tf.items() }
+                if newfile.has_key(None): del(newfile[None])
                 # set unmapped values
-                newfile['progress'] = indata['file_progress'][tnum]
+                newfile['progress'] = indata['file_progress'][tnum] * 100.0
                 newfile['priority'] = indata['file_priorities'][tnum]
                 newfiles.append(newfile)
 
@@ -194,6 +202,7 @@ class delcon:
             for tnum, tf in enumerate(indata['trackers']):
                 # remap tracker object
                 newtrack = { map_tinfo_trackers[tfk]: tfv for tfk, tfv in tf.items() }
+                if newtrack.has_key(None): del(newtrack[None])
                 # set unmapped values
                 newtrack['success_count'] = None
                 newtrack['enabled'] = True

@@ -36,8 +36,8 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.7"
-    vdate   = "29 Feb 2015"
+    version = "0.11.9"
+    vdate   = "23 Apr 2016"
 
     gitinfo = {}
     config = None
@@ -167,7 +167,7 @@ def mode_list():
 
     # get list of torrents
     if xsetup.config['run']['full']:
-        torlist = dlx.getTorrentList(filter=fltr,fields=[])
+        torlist = dlx.getTorrentList(filter=fltr,full=True)
     else:
         torlist = dlx.getTorrentList(filter=fltr)
 
