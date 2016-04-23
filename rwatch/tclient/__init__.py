@@ -26,6 +26,17 @@ import rtorrent
 
 tc_lut = { 'deluge': deluge.delcon, 'rtorrent': rtorrent.rtcon }
 
+attr_tinfo = [
+                'hash', 'name', 'path', 'base_path', 'time_added', 'comment', 'message', 'tracker_status',
+                'tracker_host', 'total_size', 'completed_size', 'progress', 'eta', 'ratio', 'uploaded', 'downloaded',
+                'upload_rate', 'download_rate', 'connected_peers', 'connected_seeds', 'total_peers', 'total_seeds',
+                'private', 'state', 'time_active', 'file_count', 'piece_length', 'next_announce', 'tracker_url',
+                'files', 'trackers'
+             ]
+attr_tinfo_files = [ 'path', 'index', 'offset', 'size', 'progress', 'priority' ]
+attr_tinfo_trackers = [ 'fail_count', 'success_count', 'url', 'type', 'enabled' ]
+
+
 class TorrentClient(object):
     """
     abstract class for interfacing with torrent clients

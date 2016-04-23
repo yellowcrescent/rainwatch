@@ -22,9 +22,56 @@ import signal
 import optparse
 import operator
 import time
+from collections import defaultdict
 from deluge_client import DelugeRPCClient
 
 from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+
+## tinfo remappings
+
+map_tinfo = defaultdict(lambda: None, {
+                'hash': "hash",
+                'name': "name",
+                'save_path': "base_path",
+                'time_added': "time_added",
+                'comment': "comment",
+                'message': "message",
+                'tracker_status': "tracker_status",
+                'tracker_host': "tracker_host",
+                'total_size': "total_size",
+                'total_done': "completed_size",
+                'progress': "progress",
+                'eta': "eta",
+                'ratio': "ratio",
+                'total_uploaded': "uploaded",
+                'all_time_download': "downloaded",
+                'upload_payload_rate': "upload_rate",
+                'download_payload_rate': "download_rate",
+                'num_peers': "connected_peers",
+                'num_seeds': "connected_seeds",
+                'total_peers': "total_peers",
+                'total_seeds': "total_seeds",
+                'private': "private",
+                'state': "state",
+                'active_time': "time_active",
+                'num_files': "file_count",
+                'num_pieces': "piece_length",
+                'next_announce': "next_announce",
+                'tracker': "tracker_url"
+            })
+
+map_tinfo_files = defaultdict(lambda: None, {
+                'path': "path",
+                'index': "index",
+                'offset': "offset",
+                'size': "size"
+            })
+
+map_tinfo_trackers = defaultdict(lambda: None, {
+                'fails': "fail_count",
+                'url': "url"
+            })
+
 
 class delcon:
     """class for handling Deluge RPC comms"""
@@ -56,7 +103,8 @@ class delcon:
     def getTorrent(self, torid):
         """get info on a particular torrent"""
         try:
-            return self.xcon.call('core.get_torrent_status',torid,[])
+            interdata = self.xcon.call('core.get_torrent_status',torid,[])
+            return self.__remap_tinfo_all(interdata)
         except Exception as e:
             logthis("Error calling core.get_torrent_status:",suffix=e,loglevel=LL.ERROR)
             return False
@@ -64,7 +112,8 @@ class delcon:
     def getTorrentList(self, filter={}, fields=['name','progress','tracker_host','eta','total_size','total_done','state','time_added']):
         """get list of torrents"""
         try:
-            return self.xcon.call('core.get_torrents_status',filter,fields)
+            interdata = self.xcon.call('core.get_torrents_status',filter,fields)
+            return self.__remap_tinfo_all(interdata)
         except Exception as e:
             logthis("Error calling core.get_torrents_status:",suffix=e,loglevel=LL.ERROR)
             return False
@@ -109,6 +158,54 @@ class delcon:
             logthis("Failed to move torrent storage:",suffix=e,loglevel=LL.ERROR)
             return False
 
+    def __remap_tinfo_all(inlist):
+        """remap dict of deluge torrents to rainwatch tinfo schema"""
+        listout = {}
+        for tkey, tdata in inlist.iteritems():
+            listout[tkey] = self.__remap_tinfo(tdata)
+        return listout
+
+    def __remap_tinfo(indata):
+        """remap deluge-specific schema to rainwatch tinfo schema"""
+        # remap most values
+        newdata = { map_tinfo[ikey]: ival for ikey, ival in indata.items() }
+        del(newdata[None])
+
+        # set other unmapped or extrapolated values
+        if indata.has_key('save_path') and indata.has_key('name'):
+            newdata['path'] = u"%s/%s" % (indata['save_path'], indata['name'])
+
+        # build file list
+        if indata.has_key('files'):
+            newfiles = []
+            for tnum, tf in enumerate(indata['files']):
+                # remap file object
+                newfile = { map_tinfo_files[tfk]: tfv for tfk, tfv in tf.items() }
+                # set unmapped values
+                newfile['progress'] = indata['file_progress'][tnum]
+                newfile['priority'] = indata['file_priorities'][tnum]
+                newfiles.append(newfile)
+
+            newdata['files'] = tuple(newfiles)
+
+        # build tracker list
+        if indata.has_key('trackers'):
+            newtracks = []
+            for tnum, tf in enumerate(indata['trackers']):
+                # remap tracker object
+                newtrack = { map_tinfo_trackers[tfk]: tfv for tfk, tfv in tf.items() }
+                # set unmapped values
+                newtrack['success_count'] = None
+                newtrack['enabled'] = True
+                try:
+                    newtrack['type'] = re.match('^([a-zA-Z]{3,5})://', tf['url']).group(1)
+                except:
+                    newtrack['type'] = None
+                newtracks.append(newtrack)
+
+            newdata['trackers'] = tuple(newtracks)
+
+        return newdata
 
     def __del__(self):
         """disconnect from deluged"""
