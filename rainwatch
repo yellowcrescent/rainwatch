@@ -160,18 +160,18 @@ def mode_list():
     global dlx
 
     # if torrent ID is specified, use it to filter
-    if xsetup.config['run']['torid']:
-        fltr = { 'id': xsetup.config['run']['torid'] }
+    if xsetup.config.run['torid']:
+        fltr = { 'id': xsetup.config.run['torid'] }
     else:
         fltr = {}
 
     # get list of torrents
-    if xsetup.config['run']['full']:
+    if xsetup.config.run['full']:
         torlist = dlx.getTorrentList(filter=fltr,full=True)
     else:
         torlist = dlx.getTorrentList(filter=fltr)
 
-    if xsetup.config['run']['json']:
+    if xsetup.config.run['json']:
         print json.dumps(torlist,indent=4,separators=(',', ': '))
     else:
         for ti,tv in torlist.iteritems():
@@ -200,8 +200,8 @@ def mode_chook(tid):
             logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
 
     # enqueue
-    qurl = xsetup.config['srv']['url'] + '/api/chook'
-    headset = { 'Content-Type': "application/json", 'WWW-Authenticate': xsetup.config['srv']['shared_key'], 'User-Agent': "rainwatch/"+xsetup.version }
+    qurl = xsetup.config.srv['url'] + '/api/chook'
+    headset = { 'Content-Type': "application/json", 'WWW-Authenticate': xsetup.config.srv['shared_key'], 'User-Agent': "rainwatch/"+xsetup.version }
     rq = requests.post(qurl,headers=headset,data=json.dumps({ 'thash': tid, 'opts': False }))
 
     if rq.status_code == 201:
@@ -231,11 +231,11 @@ if __name__ == '__main__':
     # parse CLI options and load running config
     xopt = parse_cli()
     rcfile.loadConfig(cliopts=xopt)
-    loglevel(xsetup.config['core']['loglevel'])
-    openlog(xsetup.config['core']['logfile'])
+    loglevel(xsetup.config.core['loglevel'])
+    openlog(xsetup.config.core['logfile'])
 
     # Set quiet exception handler for non-verbose operation
-    if xsetup.config['core']['loglevel'] < LL.VERBOSE:
+    if xsetup.config.core['loglevel'] < LL.VERBOSE:
         sys.excepthook = exceptionHandler
 
     # parse rules file
@@ -247,15 +247,15 @@ if __name__ == '__main__':
 
     ## process commands
 
-    if xsetup.config['run']['list']:
+    if xsetup.config.run['list']:
         # get list of torrents
         mode_list()
-    elif xsetup.config['run']['torid']:
+    elif xsetup.config.run['torid']:
         # process 'complete' hook
-        mode_chook(xsetup.config['run']['torid'])
-    elif xsetup.config['run']['srv']:
+        mode_chook(xsetup.config.run['torid'])
+    elif xsetup.config.run['srv']:
         # start daemon
-        daemon.start(xsetup.config['srv']['iface'],xsetup.config['srv']['port'],xsetup.config['run']['fdebug'])
+        daemon.start(xsetup.config)
     else:
         logthis("Nothing to do.",loglevel=LL.WARNING)
 
