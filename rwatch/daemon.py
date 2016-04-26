@@ -23,9 +23,7 @@ import time
 from setproctitle import setproctitle
 from flask import Flask,json,jsonify,make_response,request
 
-# Logging & Error handling
 from rwatch.logthis import *
-
 from rwatch import queue,jabber,db,ruleparser,tclient
 from rwatch.util import *
 
@@ -48,7 +46,7 @@ def start(xconfig):
     pidfile_set()
 
     # spawn queue runners
-    queue.start('xfer')
+    queue.start(xconfig, 'xfer')
 
     # spawn jabber handler
     if xconfig.xmpp['user'] and xconfig.xmpp['pass']:

@@ -14,7 +14,6 @@
 #
 ###############################################################################
 
-import __main__
 import sys
 import os
 import re
@@ -25,12 +24,11 @@ import subprocess
 import pipes
 from setproctitle import setproctitle
 
-# Logging & Error handling
 from rwatch.logthis import *
-
-from rwatch import db,deluge,jabber
-from rwatch.ssh2 import rainshell
 from rwatch.util import *
+from rwatch.ssh2 import rainshell
+from rwatch import db,deluge,jabber,tclient
+
 
 # Queue handler callbacks
 handlers = None
@@ -41,8 +39,9 @@ rdx = None
 dlx = None
 dadpid = None
 
-def start(qname="xfer"):
+def start(xconfig,qname="xfer"):
     global rdx, dlx, dadpid, handlers, conf
+    conf = xconfig
 
     # Fork into its own process
     logthis("Forking...",loglevel=LL.DEBUG)
@@ -62,13 +61,11 @@ def start(qname="xfer"):
     logthis("QRunner. ppid =",prefix=qname,suffix=dadpid,loglevel=LL.VERBOSE)
     setproctitle("rainwatch: queue runner - %s" % (qname))
 
-    conf = __main__.xsetup.config
-
     # Connect to Redis
-    rdx = db.redis({ 'host': conf['redis']['host'], 'port': conf['redis']['port'], 'db': conf['redis']['db'] },prefix=conf['redis']['prefix'])
+    rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },prefix=conf.redis['prefix'])
 
     # Connect to Deluge
-    dlx = deluge.delcon(conf['deluge']['user'], conf['deluge']['pass'], conf['deluge']['hostname'], int(conf['deluge']['port']))
+    dlx = tclient.TorrentClient(xconfig)
 
     # Set queue callbacks
     handlers = {
@@ -169,12 +166,12 @@ def cb_xfer(jdata):
         return 101
 
     # establish SSH connection
-    rsh = rainshell(conf['xfer']['hostname'],username=conf['xfer']['user'],keyfile=conf['xfer']['keyfile'],port=int(conf['xfer']['port']))
+    rsh = rainshell(conf.xfer['hostname'],username=conf.xfer['user'],keyfile=conf.xfer['keyfile'],port=int(conf.xfer['port']))
 
     # download
-    if conf['xfer']['hostname']:
+    if conf.xfer['hostname']:
         # send xfer start notification
-        if conf['notify']['user'] and conf['notify']['hostname']:
+        if conf.notify['user'] and conf.notify['hostname']:
             try:
                 libnotify_send("%s\n\nStarted transfer to incoming." % (tordata['name']))
             except Exception as e:
@@ -187,10 +184,10 @@ def cb_xfer(jdata):
             return False
         else:
             logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
-        logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf['xfer']['hostname'],conf['xfer']['basepath']),loglevel=LL.INFO)
+        logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf.xfer['hostname'],conf.xfer['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
-        #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (conf['xfer']['hostname'],conf['xfer']['basepath'])])
-        rsh.xfer(tgpath, conf['xfer']['basepath'])
+        #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (conf.xfer['hostname'],conf.xfer['basepath'])])
+        rsh.xfer(tgpath, conf.xfer['basepath'])
         xstop = datetime.now()
         logthis("** Transfer complete.",loglevel=LL.INFO)
 
@@ -202,7 +199,7 @@ def cb_xfer(jdata):
         tsize_str = fmtsize(tsize)
         trate_str = fmtsize(trate,rate=True)
         trate_bstr = fmtsize(trate,rate=True,bits=True)
-        jabber.send('sendmsg', { 'jid': conf['xmpp']['sendto'], 'msg': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr) })
+        jabber.send('sendmsg', { 'jid': conf.xmpp['sendto'], 'msg': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" % (tordata['name'],tsize_str,xdelta_str,trate_str,trate_bstr) })
         jabber.send('set_status', { 'show': "chat", 'status': "Ready" })
 
     # done

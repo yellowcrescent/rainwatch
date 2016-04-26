@@ -136,7 +136,10 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
     mod = inspect.getmodule(lframe)
     lline = inspect.getlineno(lframe)
     lfile = inspect.getsourcefile(lframe)
-    lfile = os.path.splitext(os.path.basename(lfile))[0]
+    try:
+        lfile = os.path.splitext(os.path.basename(lfile))[0]
+    except:
+        lfile = u'(error)'
 
     if mod:
         lmodname = unicode(mod.__name__)
