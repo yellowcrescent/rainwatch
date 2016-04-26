@@ -158,7 +158,7 @@ def cb_xfer(jdata):
     # Do some loggy stuff
     logthis("xfer: JobID %s / TorHash %s / Opts %s" % (jid,thash,json.dumps(opts)),loglevel=LL.VERBOSE)
 
-    # get updated data from Deluge
+    # get updated data from torrent client
     tordata = dlx.getTorrent(thash)
 
     if not tordata:
@@ -178,7 +178,7 @@ def cb_xfer(jdata):
                 logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
 
         # xfer via scp
-        tgpath = u"%s/%s" % (str(tordata['save_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
+        tgpath = u"%s/%s" % (str(tordata['base_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
         if not os.path.exists(tgpath):
             logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
             return False
