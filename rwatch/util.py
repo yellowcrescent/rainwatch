@@ -2,7 +2,7 @@
 # coding=utf-8
 ###############################################################################
 #
-# jabber - rwatch/util.py
+# util - rwatch/util.py
 # Rainwatch: Common utility functions
 #
 # @author   J. Hipps <jacob@ycnrg.org>
@@ -25,6 +25,35 @@ import socket
 from datetime import datetime
 
 from rwatch.logthis import *
+
+
+class XConfig(object):
+    """
+    Config management object; allow access via attributes or items
+    """
+    __data = {}
+
+    def __init__(self, idata):
+        self.__data = idata
+
+    def __getattr__(self, aname):
+        if self.__data.has_key(aname):
+            if isinstance(self.__data[aname], dict):
+                return XConfig(self.__data[aname])
+            else:
+                return self.__data[aname]
+        else:
+            raise KeyError(aname)
+
+    def __getitem__(self, aname):
+        return self.__getattr__(aname)
+
+    def __str__(self):
+        return print_r(self.__data)
+
+    def __repr__(self):
+        return print_r(self.__data)
+
 
 def rexec(optlist,supout=False):
     """

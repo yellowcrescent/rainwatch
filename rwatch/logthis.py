@@ -139,11 +139,11 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
     lfile = os.path.splitext(os.path.basename(lfile))[0]
 
     if mod:
-        lmodname = str(mod.__name__)
+        lmodname = unicode(mod.__name__)
         xmessage = u" "
     else:
-        lmodname = str(__name__)
-        xmessage = str(data)
+        lmodname = unicode(__name__)
+        xmessage = unicode(data)
     if lmodname == u"__main__":
         lmodname = u"rainwatch"
         lfunc = u"(main)"
@@ -166,10 +166,10 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
 
 def unify(indata):
     """coerce input data to unicode string"""
-    if not isinstance(indata, str) and not isinstance(indata, unicode):
+    if isinstance(indata, str):
         indata_str = str(indata).decode('utf-8')
     else:
-        indata_str = indata
+        indata_str = unicode(indata)
 
     return indata_str
 
