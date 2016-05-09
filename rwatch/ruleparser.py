@@ -224,7 +224,7 @@ def tor_isfile(tdata):
 
 	if tflist[0]['path'] == tdata['name']:
 		return True
-	elif os.path.isfile(tdata['save_path'] + '/' +tdata['name']):
+	elif os.path.isfile(tdata['path']):
 		return True
 	else:
 		return False
