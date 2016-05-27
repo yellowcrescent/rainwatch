@@ -120,43 +120,47 @@ loghand = None
 def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
     global g_loglevel
 
-    zline = u''
-    if not ccode:
-        if loglevel == LL.ERROR: ccode = C.RED
-        elif loglevel == LL.WARNING: ccode = C.YEL
-        elif loglevel == LL.PROMPT: ccode = C.WHT
-        else: ccode = u""
-    if prefix: zline += C.WHT + unify(prefix) + u": " + C.OFF
-    zline += ccode + unify(logline) + C.OFF
-    if suffix: zline += u" " + C.CYN + unify(suffix) + C.OFF
-
-    # get traceback info
-    lframe = inspect.stack()[1][0]
-    lfunc = inspect.stack()[1][3]
-    mod = inspect.getmodule(lframe)
-    lline = inspect.getlineno(lframe)
-    lfile = inspect.getsourcefile(lframe)
     try:
-        lfile = os.path.splitext(os.path.basename(lfile))[0]
-    except:
-        lfile = u'(error)'
+        zline = u''
+        if not ccode:
+            if loglevel == LL.ERROR: ccode = C.RED
+            elif loglevel == LL.WARNING: ccode = C.YEL
+            elif loglevel == LL.PROMPT: ccode = C.WHT
+            else: ccode = u""
+        if prefix: zline += C.WHT + unify(prefix) + u": " + C.OFF
+        zline += ccode + unify(logline) + C.OFF
+        if suffix: zline += u" " + C.CYN + unify(suffix) + C.OFF
 
-    if mod:
-        lmodname = unicode(mod.__name__)
-        xmessage = u" "
-    else:
-        lmodname = unicode(__name__)
-        xmessage = unicode(data)
-    if lmodname == u"__main__":
-        lmodname = u"rainwatch"
-        lfunc = u"(main)"
+        # get traceback info
+        lframe = inspect.stack()[1][0]
+        lfunc = inspect.stack()[1][3]
+        mod = inspect.getmodule(lframe)
+        lline = inspect.getlineno(lframe)
+        lfile = inspect.getsourcefile(lframe)
+        try:
+            lfile = os.path.splitext(os.path.basename(lfile))[0]
+        except:
+            lfile = u'(error)'
 
-    if g_loglevel > LL.INFO:
-        dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
-    else:
-        dbxmod = ''
+        if mod:
+            lmodname = unicode(mod.__name__)
+            xmessage = u" "
+        else:
+            lmodname = unicode(__name__)
+            xmessage = unicode(data)
+        if lmodname == u"__main__":
+            lmodname = u"rainwatch"
+            lfunc = u"(main)"
 
-    finline = u'%s%s<%s>%s %s%s\n' % (dbxmod,C.RED,LL.lname[loglevel],C.WHT,zline,C.OFF)
+        if g_loglevel > LL.INFO:
+            dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
+        else:
+            dbxmod = ''
+
+        finline = u'%s%s<%s>%s %s%s\n' % (dbxmod,C.RED,LL.lname[loglevel],C.WHT,zline,C.OFF)
+
+    except Exception as e:
+        finline = C.RED + u"Exception thrown in logthis(): " + C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e) + C.OFF + u"\n"
 
     # write log message
     # TODO: add syslog (/dev/log) functionality
