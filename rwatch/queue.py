@@ -180,15 +180,21 @@ def cb_xfer(jdata):
         # xfer via scp
         try:
             tgpath = "%s/%s" % (str(tordata['base_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
+            logthis("tgpath:",suffix=tgpath,loglevel=LL.DEBUG)
         except Exception as e:
             logexc(e, "Failed to perform string interpolation for tgpath")
             failwith(ER.PROCFAIL, "Unable to continue.")
 
-        if not os.path.exists(tgpath):
-            logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
-            return False
-        else:
-            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
+        try:
+            if not os.path.exists(tgpath):
+                logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
+                return False
+            else:
+                logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
+        except Exception as e:
+            logexc(e, "Unable to determine existence of tgpath")
+            failwith(ER.PROCFAIL, "Unable to continue.")
+
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf.xfer['hostname'],conf.xfer['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
         #rexec(['/usr/bin/scp','-B','-r',tgpath,"%s:'%s'" % (conf.xfer['hostname'],conf.xfer['basepath'])])
