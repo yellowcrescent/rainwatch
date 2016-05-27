@@ -178,7 +178,12 @@ def cb_xfer(jdata):
                 logthis("Failed to send libnotify message:",suffix=e,loglevel=LL.ERROR)
 
         # xfer via scp
-        tgpath = u"%s/%s" % (str(tordata['base_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
+        try:
+            tgpath = "%s/%s" % (str(tordata['base_path']).decode('utf-8'),str(tordata['name']).decode('utf-8'))
+        except Exception as e:
+            logexc(e, "Failed to perform string interpolation for tgpath")
+            failwith(ER.PROCFAIL, "Unable to continue.")
+
         if not os.path.exists(tgpath):
             logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
             return False
