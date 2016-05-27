@@ -25,6 +25,7 @@ import optparse
 import operator
 import time
 import requests
+import locale
 from datetime import datetime
 from setproctitle import setproctitle
 
@@ -50,7 +51,8 @@ class xsetup:
                         'json': False,
                         'full': False,
                         'srv': False,
-                        'fdebug': False
+                        'fdebug': False,
+                        'locale': None
                     },
                     'core': {
                         'loglevel': LL.INFO,
@@ -237,6 +239,12 @@ if __name__ == '__main__':
     # Set quiet exception handler for non-verbose operation
     if xsetup.config.core['loglevel'] < LL.VERBOSE:
         sys.excepthook = exceptionHandler
+
+    # set locale
+    logthis("Initial locale LC_ALL:",suffix=locale.getlocale(locale.LC_ALL),loglevel=LL.DEBUG)
+    xsetup.config.run['locale'] = os.environ['LANG']
+    locale.setlocale(locale.LC_ALL, xsetup.config.run['locale'])
+    logthis("Set locale LC_ALL:",suffix=xsetup.config.run['locale'], loglevel=LL.DEBUG)
 
     # parse rules file
     ruleparser.parse()

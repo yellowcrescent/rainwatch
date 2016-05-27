@@ -179,7 +179,7 @@ def cb_xfer(jdata):
 
         # xfer via scp
         try:
-            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name'])).decode('utf-8').encode(sys.getfilesystemencoding())
+            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name'])).decode('utf-8')
             logthis("tgpath:",suffix=tgpath,loglevel=LL.DEBUG)
         except Exception as e:
             logexc(e, "Failed to perform string interpolation for tgpath")
