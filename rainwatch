@@ -242,9 +242,8 @@ if __name__ == '__main__':
 
     # set locale
     logthis("Initial locale LC_ALL:",suffix=locale.getlocale(locale.LC_ALL),loglevel=LL.DEBUG)
-    xsetup.config.run['locale'] = os.environ['LANG']
-    locale.setlocale(locale.LC_ALL, xsetup.config.run['locale'])
-    logthis("Set locale LC_ALL:",suffix=xsetup.config.run['locale'], loglevel=LL.DEBUG)
+    locale.setlocale(locale.LC_ALL, os.environ['LANG'])
+    logthis("Set locale LC_ALL:",suffix=os.environ['LANG'], loglevel=LL.DEBUG)
 
     # parse rules file
     ruleparser.parse()
