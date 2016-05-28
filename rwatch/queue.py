@@ -22,6 +22,7 @@ import time
 import json
 import subprocess
 import pipes
+import locale
 from setproctitle import setproctitle
 
 from rwatch.logthis import *
@@ -60,6 +61,11 @@ def start(xconfig,qname="xfer"):
     logthis("Forked queue runner. pid =",prefix=qname,suffix=os.getpid(),loglevel=LL.INFO)
     logthis("QRunner. ppid =",prefix=qname,suffix=dadpid,loglevel=LL.VERBOSE)
     setproctitle("rainwatch: queue runner - %s" % (qname))
+
+    # set locale
+    logthis("Initial locale LC_ALL:",suffix=locale.getlocale(locale.LC_ALL),loglevel=LL.DEBUG)
+    locale.setlocale(locale.LC_ALL, os.environ['LANG'])
+    logthis("Set locale LC_ALL:",suffix=os.environ['LANG'], loglevel=LL.DEBUG)
 
     # Connect to Redis
     rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },prefix=conf.redis['prefix'])
