@@ -240,11 +240,6 @@ if __name__ == '__main__':
     if xsetup.config.core['loglevel'] < LL.VERBOSE:
         sys.excepthook = exceptionHandler
 
-    # set locale
-    logthis("Initial locale LC_ALL:",suffix=locale.getlocale(locale.LC_ALL),loglevel=LL.DEBUG)
-    locale.setlocale(locale.LC_ALL, os.environ['LANG'])
-    logthis("Set locale LC_ALL:",suffix=os.environ['LANG'], loglevel=LL.DEBUG)
-
     # parse rules file
     ruleparser.parse()
 

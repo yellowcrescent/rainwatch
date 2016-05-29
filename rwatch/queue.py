@@ -62,11 +62,6 @@ def start(xconfig,qname="xfer"):
     logthis("QRunner. ppid =",prefix=qname,suffix=dadpid,loglevel=LL.VERBOSE)
     setproctitle("rainwatch: queue runner - %s" % (qname))
 
-    # set locale
-    logthis("Initial locale LC_ALL:",suffix=locale.getlocale(locale.LC_ALL),loglevel=LL.DEBUG)
-    locale.setlocale(locale.LC_ALL, os.environ['LANG'])
-    logthis("Set locale LC_ALL:",suffix=os.environ['LANG'], loglevel=LL.DEBUG)
-
     # Connect to Redis
     rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },prefix=conf.redis['prefix'])
 
@@ -191,15 +186,11 @@ def cb_xfer(jdata):
             logexc(e, "Failed to perform string interpolation for tgpath")
             failwith(ER.PROCFAIL, "Unable to continue.")
 
-        try:
-            if not os.path.exists(tgpath):
-                logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
-                return False
-            else:
-                logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
-        except Exception as e:
-            logexc(e, "Unable to determine existence of tgpath")
-            failwith(ER.PROCFAIL, "Unable to continue.")
+        if not path_exists(tgpath):
+            logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
+            return False
+        else:
+            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
 
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf.xfer['hostname'],conf.xfer['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()

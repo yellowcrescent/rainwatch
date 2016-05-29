@@ -152,3 +152,20 @@ def git_info():
             logexc(e, "Unable to parse output from git")
 
     return rvx
+
+
+def path_exists(fpath):
+    """
+    determine whether a file or directory exists
+    workaround for os.stat, which doesn't properly allow Unicode filenames
+    """
+    try:
+        with open(fpath,"rb") as f:
+            f.close()
+        return True
+    except IOError as e:
+        if e.errno == 21:
+            # Is a directory
+            return True
+        else:
+            return False
