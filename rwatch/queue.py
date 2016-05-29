@@ -186,11 +186,15 @@ def cb_xfer(jdata):
             logexc(e, "Failed to perform string interpolation for tgpath")
             failwith(ER.PROCFAIL, "Unable to continue.")
 
-        if not path_exists(tgpath):
-            logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
-            return False
-        else:
-            logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
+        try:
+            if not path_exists(tgpath):
+                logthis("!! Path does not exist:",suffix=tgpath,loglevel=LL.ERROR)
+                return False
+            else:
+                logthis(">> Target path:",suffix=tgpath,loglevel=LL.INFO)
+        except Exception as e:
+            logexc(e, "Unable to determine existence of tgpath")
+            failwith(ER.PROCFAIL, "Unable to continue.")
 
         logthis(">> Starting transfer to remote host:",suffix="%s:%s" % (conf.xfer['hostname'],conf.xfer['basepath']),loglevel=LL.INFO)
         xstart = datetime.now()
