@@ -202,7 +202,7 @@ class client:
         # authenticate
         arez = self.clx.auth(jid.getNode(),jpass,jid.getResource)
         if not arez:
-            logthis("Failed to authenticate to Jabber server for",suffix=juser,loglevel=LL.ERROR)
+            logthis("Failed to authenticate to Jabber server for",suffix=jid.getUser(),loglevel=LL.ERROR)
             return False
         else:
             self.acon = arez
