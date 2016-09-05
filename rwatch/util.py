@@ -169,3 +169,20 @@ def path_exists(fpath):
             return True
         else:
             return False
+
+def test_stat(tname, tfile):
+
+    tpid = os.getpid()
+    try:
+        logthis(u"TEST: %s - os.stat(%s)" % (tname, tfile), prefix=tpid, loglevel=LL.WARNING)
+    except Exception as e:
+        logexc(e, "Failed to display log text")
+
+    try:
+        os.stat(tfile)
+        #logthis(u"TEST: ✔ PASSED OK", prefix=tpid, loglevel=LL.WARNING)
+        logthis(u"TEST: PASSED OK", prefix=tpid, loglevel=LL.WARNING)
+        return True
+    except Exception as e:
+        logexc(e, "Failed to run test_stat()")
+        return False

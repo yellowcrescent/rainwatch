@@ -185,6 +185,7 @@ def logexc(e,msg,prefix=None):
     if msg: msg += ": "
     suffix = C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e)
     logthis(msg,LL.ERROR,prefix,suffix)
+    log_traceback()
 
 def openlog(fname="rainwatch.log"):
     global loghand
@@ -214,6 +215,9 @@ def writelog(logmsg):
     if loghand:
         loghand.write(u"[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"),decolor(logmsg)))
         loghand.flush()
+
+def log_traceback():
+    traceback.print_exc(file=loghand)
 
 def decolor(instr):
     return re.sub(u'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)',u'',instr)

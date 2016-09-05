@@ -28,7 +28,7 @@ from setproctitle import setproctitle
 from rwatch.logthis import *
 from rwatch.util import *
 from rwatch.ssh2 import rainshell
-from rwatch import db,deluge,jabber,tclient
+from rwatch import db,jabber,tclient
 
 
 # Queue handler callbacks
