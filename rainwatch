@@ -37,8 +37,8 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.15"
-    vdate   = "04 Sep 2016"
+    version = "0.11.16"
+    vdate   = "01 Oct 2016"
 
     gitinfo = {}
     config = None
@@ -52,7 +52,8 @@ class xsetup:
                         'full': False,
                         'srv': False,
                         'fdebug': False,
-                        'locale': None
+                        'locale': None,
+                        'move': None
                     },
                     'core': {
                         'loglevel': LL.INFO,
@@ -134,6 +135,7 @@ def parse_cli():
 
     oparser.add_option('-d','--srv', action="store_true", dest="run.srv", default=False, help="Daemon mode")
     oparser.add_option('-l','--list', action="store_true", dest="run.list", default=False, help="List torrents")
+    oparser.add_option('-m','--move', action="store", dest="run.move", default=None, metavar="PATH", help="Move storage")
     oparser.add_option('-f','--full', action="store_true", dest="run.full", default=False, help="Full output in torrent list")
     oparser.add_option('-j','--json', action="store_true", dest="run.json", default=False, help="Output data as JSON")
 
@@ -178,6 +180,7 @@ def mode_list():
     else:
         for ti,tv in torlist.iteritems():
             print "%s: %s (%0.01f) [%s]" % (ti,tv['name'],tv['progress'],tv['tracker_host'])
+    return 0
 
 def mode_chook(tid):
     global dlx,jbx
@@ -208,11 +211,31 @@ def mode_chook(tid):
 
     if rq.status_code == 201:
         logthis(">> Queued torrent for transfer",loglevel=LL.INFO)
+        rval = 0
     else:
         logthis("!! Failed to queue for transfer:",suffix=str(rq.status_code)+' '+rq.reason,loglevel=LL.ERROR)
+        rval = 101
 
     logthis("*** Finished with complete exec hook for",suffix=tordata['name'],loglevel=LL.INFO)
-    return True
+    return rval
+
+
+def mode_move(tid, destdir):
+    global dlx,jbx
+
+    # get torrent data
+    logthis(">> Processing 'complete' exec hook for",suffix=tid,loglevel=LL.INFO)
+    tordata = dlx.getTorrent(tid)
+
+     # move to destination dir
+    if rset.get('moveto',None):
+        if dlx.moveTorrent(tid, destdir):
+            logthis("** Moved to",suffix=rset['moveto'],loglevel=LL.INFO)
+            rval = 0
+        else:
+            logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
+            rval = 102
+    return rval
 
 ##############################################################################
 ## Entry point
@@ -251,14 +274,19 @@ if __name__ == '__main__':
 
     if xsetup.config.run['list']:
         # get list of torrents
-        mode_list()
+        rval = mode_list()
+    elif xsetup.config.run['move'] is not None:
+        # process 'move' command
+        rval = mode_move(xsetup.config.run['torid'], xsetup.config.run['move'])
     elif xsetup.config.run['torid']:
         # process 'complete' hook
-        mode_chook(xsetup.config.run['torid'])
+        rval = mode_chook(xsetup.config.run['torid'])
     elif xsetup.config.run['srv']:
         # start daemon
-        daemon.start(xsetup.config)
+        rval = daemon.start(xsetup.config)
     else:
         logthis("Nothing to do.",loglevel=LL.WARNING)
+        rval = 1
 
     closelog()
+    sys.exit(rval)

@@ -26,3 +26,153 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
+
+## Installation
+
+### Prerequisites
+
+#### Redis
+
+Rainwatch uses Redis for shared queue management.
+
+In Debian-like distros:
+
+	sudo apt-get update
+	sudo apt-get install redis-server
+	service redis start
+
+In RedHat-like distros:
+
+	sudo yum install redis
+	service redis start
+
+#### xmpppy
+
+It is recommended to use the Archipel Project's fork of xmpppy, which has fixed a crucial bug in the XMPP registration process.
+
+	git clone https://github.com/ArchipelProject/xmpppy.git
+	cd xmpppy
+	sudo python setup.py install
+
+
+### Rainwatch install
+
+	git clone https://git.ycnrg.org/scm/yrw/rainwatch.git
+	cd rainwatch
+	sudo python setup.py install
+
+Alternatively, use `develop` to allow for easy updates:
+
+	sudo python setup.py develop
+
+
+## Configuration
+
+It is recommended to create a `~/.rainwatch` directory to contain your configuration and rule files. However, configuration files can be placed in the following locations (in order of precedent): `./rainwatch.conf`, `~/.rainwatch/rainwatch.conf`, `~/.rainwatch`, or `/etc/rainwatch.conf`.
+
+Below is an example of a minimal configuration file:
+```
+[core]
+logfile = "~/.rainwatch/rainwatch.log"
+rules = "~/.rainwatch/rules.conf"
+tclient = "deluge"
+
+[deluge]
+hostname = "localhost"
+user = "deluge_user"
+pass = "secret"
+
+[xfer]
+hostname = "alpha.example.com"
+user = "jacob"
+basepath = "/destination/save/path"
+keyfile = "~/.ssh/jacob-private-key"
+
+[srv]
+iface = "127.0.0.1"
+url = "http://localhost:8080"
+port = 8080
+pidfile = "~/.rainwatch/rainwatch.pid"
+shared_key = "replace.this.with.something.random"
+
+```
+
+The above config snippet will provide enough details to ensure that rainwatch is able to spawn a service, as well as connect to your torrent client and transfer the downloaded files to another machine. Rainwatch currently supports both Deluge and rTorrent. Check out the _Torrent Client_ below section for full details on both.
+
+> In order for automated SFTP transfers to work properly, the provided key must **NOT** be secured with a passphrase. It is also recommended that you run rainwatch as a regular, unprivileged user, and that the xfer user is also non-root. You can test to ensure the SSH connection will work correctly via `ssh -i ~/.ssh/my-private-key user@xfer_host`
+
+### All configuration options
+
+Each option name is followed by the default value in italics. _(None)_ indicates the NoneType object in Python, and _()_ indicates an empty string.
+
+#### [core] - Core configuration
+
+- loglevel _(info)_ - Log level
+- logfile _(rainwatch.log)_ - Log file output
+- rules _(rainwatch.rules)_ - Rule file
+- tclient _(deluge)_ - Torrent client: one of __deluge__ or __rtorrent__
+
+#### [xfer] - SFTP transfer configuration
+
+These settings define the server and location where completed downloads should be transferred. The transfer is done via Paramiko and does not use the actual `sftp` command.
+
+- hostname _(None)_ - Server hostname. Either needs to be fully-qualified, or match a defined Host section in user's ssh_config
+- user _(None)_ - SSH user for authentication
+- port _(22)_ - SSH port number
+- basepath _()_ - Remote basepath. This is where files will be copied
+- keyfile _(None)_ - SSH private key (non-encrypted)
+
+#### [notify] - DBus Desktop Notifications
+
+Triggers a DBus notify event on the specified host when a file transfer begins. This is done by connecting via SSH, determining the user's DBus socket path, and executing the notify command. The actual `ssh` program is executed to perform this task, so the specified hostname should exist in the user's `~/.ssh/config`, and should have a corresponding private key to allow password-less login.
+
+- hostname _(None)_ - Target hostname
+- user _(None)_ - SSH username
+- icon _()_ - Path to a PNG file __on the target host__ to use as an icon in the notify toast. Leave empty to send a notification without an icon. A good idea might be to use icons from `/usr/share/icons`
+
+#### [srv] - Daemon configuration
+
+Rainwatch runs a daemon service in the background to listen for new events, as well as manage the transfer queue. When a torrent is completed, rainwatch is called with the torrent's hash ID, and rainwatch submits the request to the running daemon via its REST interface. The URL defined below will be prefixed to these requests. This should be changed to the canonical URL when proxying requests via Nginx or another web server
+
+- pidfile _(rainwatch.pid)_ - Path to PID file
+- url _(http://localhost:4464)_ - URL used to access REST API from the client
+- iface _(0.0.0.0)_ - IP to bind
+- port _(4464)_ - Port to bind
+- nofork _(False)_ - When `True`, prevents rainwatch from detaching itself from the user's tty and forking into the background. Useful mainly for debugging server crashes
+- debug _(False)_ - When `True`, enables Flask's debug mode
+- shared_key _()_ - A randomized shared key, used for simple authentication for inbound requests
+
+#### [redis] - Redis configuration
+
+- host _(localhost)_ - Redis server hostname
+- port _(6379)_ - Redis server port
+- db _(11)_ - DB number
+- prefix _(rainwatch)_ - Keyspace prefix. All keys in Redis are prefixed with this string
+
+#### [xmpp] - XMPP/Jabber configuration
+
+Rainwatch can send completion notifications after a succesesful transfer, as well as indicate progress of a download via XMPP announce/presence. The user and password defined here will be used by rainwatch, and will show a status of 'Ready' when it's up and running.
+
+- user _(None)_ - Jabber ID, user@domain.tld
+- pass _(None)_ - Password
+- server _(None)_ - Explicitly connect to this hostname, rather than relying on SRV records
+- sendto _(None)_ - JID to send notifications. This can be a different domain (eg. sent to a user on a different Jabber server), as long as the host server is federated.
+
+#### [deluge] - Deluge JSON-RPC configuration
+
+Deluge RPC client configuration. Rainwatch connects via the JSON-RPC interface, so the credentials used here will be the same as those used when connecting with the deluge-gtk client. If the hostname is not localhost, Deluge will need to be configured to listen on a public interface, and 'Allow remote connections' should enabled
+
+- user _()_ - Deluge RPC username
+- pass _()_ - Deluge RPC password
+- hostname _(localhost)_ - Hostname of server running deluged
+- port _(58846)_ - deluged RPC port
+
+#### [rtorrent] - rTorrent XMLRPC configuration
+
+rTorrent RPC client configuration. Rainwatch connects via the XMLRPC interface. The rTorrent RPC interface does not use any authentication, so many people run rTorrent behind Nginx or another web server, and either enforce an ACL, or use Basic Auth. When using Basic Auth, modify the URI to include the authentication information. The URI should _not_ contain the `/RPC2` portion.
+
+- uri _(http://localhost:5000)_ - rTorrent RPC base URI. Basic authentication can be encoded in the URL
+
+#### [web] - Web interface configuration
+
+- bw\_graph _(None)_ - URL to a graph generated by Graphite, Grafana, Cacti, Munin, etc. showing recent bandwidth usage. The URL should be accessible by users visiting the rainwatch web interface (eg. does not require proxying)
