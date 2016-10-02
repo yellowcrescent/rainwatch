@@ -37,7 +37,7 @@ from rwatch.ssh2 import rainshell
 class xsetup:
     """Contains version information and globals"""
     ## Version info
-    version = "0.11.16"
+    version = "0.11.17"
     vdate   = "01 Oct 2016"
 
     gitinfo = {}
@@ -224,17 +224,18 @@ def mode_move(tid, destdir):
     global dlx,jbx
 
     # get torrent data
-    logthis(">> Processing 'complete' exec hook for",suffix=tid,loglevel=LL.INFO)
+    logthis(">> Retrieving torrent data for",suffix=tid,loglevel=LL.INFO)
     tordata = dlx.getTorrent(tid)
+    fnewpath = unicode(os.path.realpath(destdir), 'utf-8') + u'/' + tordata['name']
+    logthis(">> Moving: %s ->" % (tordata['path']), suffix=fnewpath, loglevel=LL.INFO)
 
      # move to destination dir
-    if rset.get('moveto',None):
-        if dlx.moveTorrent(tid, destdir):
-            logthis("** Moved to",suffix=rset['moveto'],loglevel=LL.INFO)
-            rval = 0
-        else:
-            logthis("!! Failed to move to",suffix=rset['moveto'],loglevel=LL.ERROR)
-            rval = 102
+    if dlx.moveTorrent(tid, destdir):
+        logthis("** Moved to",suffix=destdir,loglevel=LL.INFO)
+        rval = 0
+    else:
+        logthis("!! Failed to move to",suffix=destdir,loglevel=LL.ERROR)
+        rval = 102
     return rval
 
 ##############################################################################
