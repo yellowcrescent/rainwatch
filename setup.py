@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 setup(
     name = "rainwatch",
-    version = "0.11.17",
+    version = "0.11.18",
     author = "Jacob Hipps",
     author_email = "jacob@ycnrg.org",
     license = "MIT",
@@ -13,12 +13,17 @@ setup(
     url = "https://bitbucket.org/yellowcrescent/rainwatch/",
 
     packages = find_packages(),
-    scripts = ['rainwatch'],
+    scripts = [],
 
-    install_requires = ['docutils>=0.3','setproctitle','pymongo>=3.0','redis>=2.10','pymediainfo>=1.4.0','enzyme>=0.4.1','deluge-client>=1.0.3','xmpppy','paramiko>=1.16.0','flask>=0.10.1','requests>=2.2.1'],
+    install_requires = ['docutils','setproctitle','pymongo','redis','pymediainfo','enzyme','deluge-client','xmpppy','paramiko','flask>=0.10.1','requests>=2.2.1','arrow'],
 
     package_data = {
         '': [ '*.md' ],
+    },
+
+
+    entry_points = {
+        'console_scripts': [ 'rainwatch = rwatch.cli:_main' ]
     }
 
     # could also include long_description, download_url, classifiers, etc.

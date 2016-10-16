@@ -1,28 +1,23 @@
 #!/usr/bin/env python
 # coding=utf-8
-###############################################################################
-#
-# deluge - rwatch/deluge.py
-# Rainwatch: Deluge RPC interface functions
-#
-# @author   J. Hipps <jacob@ycnrg.org>
-# @repo     https://bitbucket.org/yellowcrescent/rainwatch
-#
-# Copyright (c) 2016 J. Hipps / Neo-Retro Group
-#
-# https://ycnrg.org/
-#
-###############################################################################
+# vim: set ts=4 sw=4 expandtab syntax=python:
+"""
 
-import sys
+rwatch.tclient.deluge
+Rainwatch > Deluge RPC client
+
+Copyright (c) 2016 J. Hipps / Neo-Retro Group
+https://ycnrg.org/
+
+@author     Jacob Hipps <jacob@ycnrg.org>
+@repo       https://git.ycnrg.org/projects/YRW/repos/rainwatch
+
+"""
+
 import os
 import re
-import json
-import signal
-import optparse
-import operator
-import time
 from collections import defaultdict
+
 from deluge_client import DelugeRPCClient
 
 from rwatch.logthis import *
@@ -87,25 +82,25 @@ class delcon:
 
     def __init__(self, duser, dpass, dhost='localhost', dport=58846, abortfail=True):
         """connect to deluged and authenticate"""
-        logthis("Connecting to deluged on",suffix="%s:%d" % (dhost,dport),loglevel=LL.INFO)
+        logthis("Connecting to deluged on", suffix="%s:%d" % (dhost, dport), loglevel=LL.INFO)
         self.xcon = DelugeRPCClient(dhost, dport, duser, dpass)
         try:
             self.xcon.connect()
             self.client_version = self.xcon.call('daemon.info')
             self.libtor_version = self.xcon.call('core.get_libtorrent_version')
         except Exception as e:
-            logthis("Failed to connect to Deluge:",suffix=e,loglevel=LL.ERROR)
+            logthis("Failed to connect to Deluge:", suffix=e, loglevel=LL.ERROR)
             if abortfail: failwith(ER.CONF_BAD, "Connection to Deluge failed. Aborting.")
-        logthis("Connected to Deluge OK",ccode=C.GRN,loglevel=LL.INFO)
-        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version),loglevel=LL.INFO)
+        logthis("Connected to Deluge OK", ccode=C.GRN, loglevel=LL.INFO)
+        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.INFO)
         self.connected = True
 
     def getTorrent(self, torid):
         """get info on a particular torrent"""
         try:
-            interdata = self.xcon.call('core.get_torrent_status',torid,[])
+            interdata = self.xcon.call('core.get_torrent_status', torid, [])
         except Exception as e:
-            logexc(e,"Error calling core.get_torrents_status")
+            logexc(e, "Error calling core.get_torrents_status")
             return False
 
         return self.__remap_tinfo(interdata)
@@ -115,12 +110,12 @@ class delcon:
         if full:
             fields = []
         else:
-            fields = ['name','progress','tracker_host','eta','total_size','total_done','state','time_added']
+            fields = ['name', 'progress', 'tracker_host', 'eta', 'total_size', 'total_done', 'state', 'time_added']
 
         try:
-            interdata = self.xcon.call('core.get_torrents_status',filter,fields)
+            interdata = self.xcon.call('core.get_torrents_status', filter, fields)
         except Exception as e:
-            logexc(e,"Error calling core.get_torrents_status")
+            logexc(e, "Error calling core.get_torrents_status")
             return False
 
         return self.__remap_tinfo_all(interdata)
@@ -128,7 +123,7 @@ class delcon:
     def renameFolder(self, torid, newname):
         """rename torrent directory name"""
         # first, get info on this torrent
-        torinfo = self.xcon.call('core.get_torrent_status',torid,[])
+        torinfo = self.xcon.call('core.get_torrent_status', torid, [])
 
         # Check if the dir is the same as torrent name
         if os.path.isdir(torinfo['save_path'] + '/' + torinfo['name']):
@@ -136,17 +131,17 @@ class delcon:
         elif os.path.isdir(os.path.dirname(torinfo['save_path'] + '/' + torinfo['files'][0]['path'])):
             fdir = os.path.dirname(torinfo['save_path'] + '/' + torinfo['files'][0]['path'])
         else:
-            logthis("Unable to determine existing directory name for",suffix=torid,loglevel=LL.ERROR)
+            logthis("Unable to determine existing directory name for", suffix=torid, loglevel=LL.ERROR)
             return False
 
         # get base dir from full path
         sdir = os.path.basename(fdir)
 
         try:
-            self.xcon.call('core.rename_folder',torid,sdir,newname)
+            self.xcon.call('core.rename_folder', torid, sdir, newname)
             return True
         except Exception as e:
-            logthis("Failed to rename torrent dir:",prefix=torid,suffix=e,loglevel=LL.ERROR)
+            logthis("Failed to rename torrent dir:", prefix=torid, suffix=e, loglevel=LL.ERROR)
             return False
 
     def moveTorrent(self, torids, destdir):
@@ -155,14 +150,14 @@ class delcon:
 
         rpdir = os.path.realpath(destdir)
         if not os.path.isdir(rpdir):
-            logthis("Failed to move torrent storage. Directory does not exist:",suffix=rpdir,loglevel=LL.ERROR)
+            logthis("Failed to move torrent storage. Directory does not exist:", suffix=rpdir, loglevel=LL.ERROR)
             return False
 
         try:
-            self.xcon.call('core.move_storage',torids,rpdir)
+            self.xcon.call('core.move_storage', torids, rpdir)
             return True
         except Exception as e:
-            logthis("Failed to move torrent storage:",suffix=e,loglevel=LL.ERROR)
+            logthis("Failed to move torrent storage:", suffix=e, loglevel=LL.ERROR)
             return False
 
     def __remap_tinfo_all(self, inlist):
@@ -207,7 +202,7 @@ class delcon:
                 newtrack['success_count'] = None
                 newtrack['enabled'] = True
                 try:
-                    newtrack['type'] = re.match('^([a-zA-Z]{3,5})://', tf['url']).group(1)
+                    newtrack['type'] = re.match(r'^([a-zA-Z]{3,5})://', tf['url']).group(1)
                 except:
                     newtrack['type'] = None
                 newtracks.append(newtrack)

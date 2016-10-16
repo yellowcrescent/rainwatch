@@ -1,12 +1,15 @@
 /**
  ******************************************************************************
- **%%vim: set modelines=10:
+ **%%vim: set ts=4 sw=4 expandtab syntax=javascript:
  *
  * gulpfile.js
- * Gulpfile for task running
+ * Rainwatch > Gulpfile for task running
+ *
+ * Copyright (c) 2016 J. Hipps / Neo-Retro Group
+ * https://ycnrg.org/
  *
  * @author      Jacob Hipps - jacob@ycnrg.org
- * @param       vim: set ts=4 sw=4 noexpandtab syntax=javascript:
+ * @repo        https://git.ycnrg.org/projects/YRW/repos/rainwatch
  *
  *****************************************************************************/
 
@@ -37,16 +40,16 @@ function pylintParser(indata, showTypes) {
         if(!toks) continue;
         if(toks[3][0] == 'E') {
             results['error']++;
-            var colorized_msg = C.red(toks[3] + ": " + toks[6])
+            var colorized_msg = C.red(toks[3] + ": " + toks[6] + " <" + toks[4] + ">")
         } else if(toks[3][0] == 'W') {
             results['warning']++;
-            var colorized_msg = C.yellow(toks[3] + ": " + toks[6])
+            var colorized_msg = C.yellow(toks[3] + ": " + toks[6] + " <" + toks[4] + ">")
         } else if(toks[3][0] == 'R') {
             results['refactor']++;
-            var colorized_msg = C.cyan(toks[3] + ": " + toks[6])
+            var colorized_msg = C.cyan(toks[3] + ": " + toks[6] + " <" + toks[4] + ">")
         } else if(toks[3][0] == 'C') {
             results['convention']++;
-            var colorized_msg = C.gray(toks[3] + ": " + toks[6])
+            var colorized_msg = C.gray(toks[3] + ": " + toks[6] + " <" + toks[4] + ">")
         }
 
         if(showTypes.search(toks[3][0]) >= 0) {
@@ -78,7 +81,7 @@ gulp.task('bower', function() {
 });
 
 // Python linting task
-var pysource = [ 'rainwatch', 'rwatch' ];
+var pysource = [ 'rwatch' ];
 var pylintrc = '.pylintrc';
 var pylintTypes = 'EW';
 var PYERR = { FATAL: 1, ERROR: 2, WARNING: 4, REFACTOR: 8, CONVENTION: 16, USAGE: 32 };
@@ -90,8 +93,7 @@ gulp.task('pylint', function() {
         gutil.log(C.red("pylint reported usage error. Please check gulp config and file locations."))
         throw new Error("pylint failed (" + sout.status + ")");
     } else if(sout.status & PYERR.FATAL) {
-        gutil.log(C.red("pylint reported fatal error"))
-        throw new Error("pylint failed (" + sout.status + ")");
+        gutil.log(C.red("*** pylint reported fatal error ***"));
     }
     //gutil.log("sout =", sout);
     var results = pylintParser(sout.stdout, pylintTypes);

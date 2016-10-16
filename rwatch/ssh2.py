@@ -1,29 +1,28 @@
 #!/usr/bin/env python
 # coding=utf-8
-###############################################################################
-#
-# ssh2 - rwatch/ssh2.py
-# Rainwatch: SSH2 Functions
-#
-# @author   J. Hipps <jacob@ycnrg.org>
-# @repo     https://bitbucket.org/yellowcrescent/rainwatch
-#
-# Copyright (c) 2016 J. Hipps / Neo-Retro Group
-#
-# https://ycnrg.org/
-#
-###############################################################################
+# vim: set ts=4 sw=4 expandtab syntax=python:
+"""
 
-import sys
+rwatch.ssh2
+Rainwatch > SSH2/SFTP client using Paramiko
+
+Copyright (c) 2016 J. Hipps / Neo-Retro Group
+https://ycnrg.org/
+
+@author     Jacob Hipps <jacob@ycnrg.org>
+@repo       https://git.ycnrg.org/projects/YRW/repos/rainwatch
+
+"""
+
 import os
-import re
-import json
 import time
+
 import paramiko
 
-from rwatch.logthis import C,LL,logthis,ER,failwith,loglevel,print_r,exceptionHandler
+from rwatch.logthis import *
 from rwatch.util import *
 from rwatch import jabber
+
 
 class rainshell(paramiko.client.SSHClient):
     """
@@ -33,11 +32,12 @@ class rainshell(paramiko.client.SSHClient):
     connected = False
     jbx = None
 
-    xfer_stats = { 'xname': None, 'files_tot': 0, 'files_done': 0, 'cur_file': None, 'gtotal': 0, 'gxfer': 0, 'ttotal': 0, 'txfer': 0, 'last_update': 0 }
+    xfer_stats = {'xname': None, 'files_tot': 0, 'files_done': 0, 'cur_file': None,
+                  'gtotal': 0, 'gxfer': 0, 'ttotal': 0, 'txfer': 0, 'last_update': 0}
 
     statusUpdateFreq = 1.0
 
-    def __init__(self,hostname,username=None,keyfile=None,password=None,port=22,timeout=None,autoconnect=True):
+    def __init__(self, hostname, username=None, keyfile=None, password=None, port=22, timeout=None, autoconnect=True):
         """
         initialize, connect, and establish sftp channel
         """
@@ -52,24 +52,26 @@ class rainshell(paramiko.client.SSHClient):
         # connect
         if autoconnect:
             try:
-                self.connect(hostname,port,username,password,key_filename=keyfile,timeout=timeout,compress=True)
+                self.connect(hostname, port, username, password, key_filename=keyfile, timeout=timeout, compress=True)
             except Exception as e:
-                logthis("!! Failed to connect via SSH to remote host (%s@%s:%d):" % (username,hostname,port),suffix=e,loglevel=LL.ERROR)
+                logthis("!! Failed to connect via SSH to remote host (%s@%s:%d):" % (username, hostname, port),
+                        suffix=e, loglevel=LL.ERROR)
                 return
 
             self.connected = True
-            logthis("** Connected to remote host via SSH:",suffix="%s@%s:%d" % (username,hostname,port),loglevel=LL.INFO)
+            logthis("** Connected to remote host via SSH:", suffix="%s@%s:%d" % (username, hostname, port),
+                    loglevel=LL.INFO)
 
             # initialize sftp channel
             self.rsc = self.open_sftp()
 
-    def jabber(self,jabobj):
+    def jabber(self, jabobj):
         """
         set jabber ref
         """
         self.jbx = jabobj
 
-    def xfer(self,src,dest):
+    def xfer(self, src, dest):
         """
         perform recursive 'put' operation via sftp
         """
@@ -83,9 +85,9 @@ class rainshell(paramiko.client.SSHClient):
         if os.path.isdir(rps):
             rootdir = os.path.basename(rps)
             xname = rootdir
-            for dpath,dirs,files in os.walk(rps):
+            for dpath, dirs, files in os.walk(rps):
                 # get path relative to our src dir
-                drel = dpath.replace(localbase,'')
+                drel = dpath.replace(localbase, '')
                 dlist += [ drel ]
                 # enumerate files
                 for tf in files:
@@ -97,66 +99,71 @@ class rainshell(paramiko.client.SSHClient):
             flist = [ '/'+xname ]
             totsize = os.lstat(rps).st_size
 
-        logthis(u">> Xfer [%s] -> [%s]" % (src,dest),loglevel=LL.INFO)
-        logthis(u">> Files: %d / Dirs: %d / Size: %s" % (len(flist),len(dlist),fmtsize(totsize)),loglevel=LL.INFO)
-        logthis(u"dlist:\n",suffix=print_r(dlist),loglevel=LL.DEBUG)
-        logthis(u"flist:\n",suffix=print_r(flist),loglevel=LL.DEBUG)
+        logthis(u">> Xfer [%s] -> [%s]" % (src, dest), loglevel=LL.INFO)
+        logthis(u">> Files: %d / Dirs: %d / Size: %s" % (len(flist), len(dlist), fmtsize(totsize)), loglevel=LL.INFO)
+        logthis(u"dlist:\n", suffix=print_r(dlist), loglevel=LL.DEBUG)
+        logthis(u"flist:\n", suffix=print_r(flist), loglevel=LL.DEBUG)
 
         # check that we have enough free space on target device
         dfree = self.df(dest)
-        logthis("-- Free space on %s (%s):" % (dfree['dev'],dfree['mount']),suffix=fmtsize(dfree['free']),loglevel=LL.VERBOSE)
+        logthis("-- Free space on %s (%s):" % (dfree['dev'], dfree['mount']), suffix=fmtsize(dfree['free']),
+                loglevel=LL.VERBOSE)
         if dfree['free'] < totsize:
-            logthis("!! Not enough free space on target device",suffix="%s (%s)" % (dfree['dev'],dfree['mount']),loglevel=LL.ERROR)
+            logthis("!! Not enough free space on target device", suffix="%s (%s)" % (dfree['dev'], dfree['mount']),
+                    loglevel=LL.ERROR)
             return False
 
         # create rootdir
         if rootdir and not self.ifexist(dest+'/'+rootdir):
             try:
-                self.rsc.mkdir(dest+'/'+rootdir,mode=os.lstat(localbase+'/'+rootdir).st_mode)
+                self.rsc.mkdir(dest+'/'+rootdir, mode=os.lstat(localbase+'/'+rootdir).st_mode)
             except Exception as e:
-                logthis("!! Failed to create rootdir (%s). Error:" % (localbase+'/'+rootdir),suffix=e,loglevel=LL.ERROR)
+                logthis("!! Failed to create rootdir (%s). Error:" % (localbase+'/'+rootdir), suffix=e,
+                        loglevel=LL.ERROR)
                 return False
 
         # create directories
         for xtd in dlist:
             if not self.ifexist(dest+xtd):
                 try:
-                    self.rsc.mkdir(dest+xtd,mode=os.lstat(localbase+xtd).st_mode)
+                    self.rsc.mkdir(dest+xtd, mode=os.lstat(localbase+xtd).st_mode)
                 except Exception as e:
-                    logthis("!! Failed to create directory (%s). Error:" % (dest+rootdir),suffix=e,loglevel=LL.ERROR)
+                    logthis("!! Failed to create directory (%s). Error:" % (dest+rootdir), suffix=e, loglevel=LL.ERROR)
                     return False
 
         # set up xfer_stats
-        self.xfer_stats = { 'xname': xname, 'files_tot': len(flist), 'files_done': 0, 'cur_file': None, 'gtotal': totsize, 'gxfer': 0, 'ttotal': 0, 'txfer': 0, 'last_update': 0 }
+        self.xfer_stats = {'xname': xname, 'files_tot': len(flist), 'files_done': 0, 'cur_file': None,
+                           'gtotal': totsize, 'gxfer': 0, 'ttotal': 0, 'txfer': 0, 'last_update': 0}
 
         # copy files
         for xtf in flist:
-            logthis(u">> [put] %s -> %s" % (localbase+xtf,dest+xtf),loglevel=LL.VERBOSE)
+            logthis(u">> [put] %s -> %s" % (localbase+xtf, dest+xtf), loglevel=LL.VERBOSE)
             self.xfer_stats['cur_file'] = xtf
-            self.rsc.put(localbase+xtf,dest+xtf,callback=self._progress)
+            self.rsc.put(localbase+xtf, dest+xtf, callback=self._progress)
             self.xfer_stats['files_done'] += 1
             self.xfer_stats['gxfer'] += os.lstat(localbase+xtf).st_size
 
-        logthis("** Xfer complete:",suffix=xname,loglevel=LL.INFO)
+        logthis("** Xfer complete:", suffix=xname, loglevel=LL.INFO)
         return self.xfer_stats['gxfer']
 
-    def df(self,path):
+    def df(self, path):
         """
         get free diskspace for a given input path
         """
         dfo = self.rexec('df -P "%s"' % (path)).splitlines()[1].split()
-        dfx = { 'dev': dfo[0], 'total': int(dfo[1]) * 1024, 'used': int(dfo[2]) * 1024, 'free': int(dfo[3]) * 1024, 'usage': (float(dfo[2]) / float(dfo[1]) * 100.0), 'mount': dfo[5] }
+        dfx = {'dev': dfo[0], 'total': int(dfo[1]) * 1024, 'used': int(dfo[2]) * 1024, 'free': int(dfo[3]) * 1024,
+               'usage': (float(dfo[2]) / float(dfo[1]) * 100.0), 'mount': dfo[5]}
         return dfx
 
-    def rexec(self,cmd):
+    def rexec(self, cmd):
         """
         simple wrapper around exec_command that returns stdout as a string
         """
-        si,so,se = self.exec_command(cmd)
+        si, so, se = self.exec_command(cmd)
         sout = so.read()
         return sout
 
-    def _progress(self,txb,totb):
+    def _progress(self, txb, totb):
         """
         file xfer progress callback
         """
@@ -168,10 +175,12 @@ class rainshell(paramiko.client.SSHClient):
             # update jabber status
             dltot = self.xfer_stats['gxfer'] + self.xfer_stats['txfer']
             percento = float(dltot) / float(self.xfer_stats['gtotal']) * 100.0
-            jabber.send('set_status', { 'show': "xa", 'status': "Downloading [%0.01f%% -- %s of %s]: %s" % (percento,fmtsize(dltot),fmtsize(self.xfer_stats['gtotal']),self.xfer_stats['xname']) })
+            statline = "Downloading [%0.01f%% -- %s of %s]: %s" % \
+                       (percento, fmtsize(dltot), fmtsize(self.xfer_stats['gtotal']), self.xfer_stats['xname'])
+            jabber.send('set_status', {'show': "xa", 'status': statline})
             self.xfer_stats['last_update'] = nowtime
 
-    def ifexist(self,rpath):
+    def ifexist(self, rpath):
         """
         check if remote file/dir exists
         """

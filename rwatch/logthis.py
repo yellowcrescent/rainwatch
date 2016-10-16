@@ -1,27 +1,23 @@
 #!/usr/bin/env python
 # coding=utf-8
-###############################################################################
-#
-# logthis - rwatch/logthis.py
-# Rainwatch: Logging functions
-#
-# @author   J. Hipps <jacob@ycnrg.org>
-# @repo     https://bitbucket.org/yellowcrescent/rainwatch
-#
-# Copyright (c) 2013-2016 J. Hipps / Neo-Retro Group
-#
-# https://ycnrg.org/
-#
-###############################################################################
+# vim: set ts=4 sw=4 expandtab syntax=python:
+"""
+
+rwatch.logthis
+Rainwatch > Logging & output control facilities
+
+Copyright (c) 2016 J. Hipps / Neo-Retro Group
+https://ycnrg.org/
+
+@author     Jacob Hipps <jacob@ycnrg.org>
+@repo       https://git.ycnrg.org/projects/YRW/repos/rainwatch
+
+"""
 
 import os
 import sys
-import __main__
 import traceback
 import inspect
-import logging
-import logging.handlers
-import signal
 import json
 import re
 import codecs
@@ -84,7 +80,7 @@ class ER:
             }
 
 class xbError(Exception):
-    def __init__(self,etype):
+    def __init__(self, etype):
         self.etype = etype
     def __str__(self):
         return ER.lname[self.etype]
@@ -117,7 +113,7 @@ g_loglevel = LL.INFO
 # logfile handle
 loghand = None
 
-def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
+def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
     global g_loglevel
 
     try:
@@ -153,18 +149,18 @@ def logthis(logline,loglevel=LL.DEBUG,prefix=None,suffix=None,ccode=None):
             lfunc = u"(main)"
 
         if g_loglevel > LL.INFO:
-            dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT,lmodname,C.YEL,lfunc,C.WHT,lline)
+            dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT, lmodname, C.YEL, lfunc, C.WHT, lline)
         else:
             dbxmod = ''
 
-        finline = u'%s%s<%s>%s %s%s\n' % (dbxmod,C.RED,LL.lname[loglevel],C.WHT,zline,C.OFF)
+        finline = u'%s%s<%s>%s %s%s\n' % (dbxmod, C.RED, LL.lname[loglevel], C.WHT, zline, C.OFF)
 
     except Exception as e:
-        finline = C.RED + u"Exception thrown in logthis(): " + C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e) + C.OFF + u"\n"
+        finline = C.RED + u"Exception thrown in logthis(): " + \
+                  C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + \
+                  C.YEL + str(e) + C.OFF + u"\n"
 
     # write log message
-    # TODO: add syslog (/dev/log) functionality
-
     if g_loglevel >= loglevel:
         sys.stdout.write(finline)
 
@@ -180,23 +176,25 @@ def unify(indata):
 
     return indata_str
 
-def logexc(e,msg,prefix=None):
+def logexc(e, msg, prefix=None):
     """log exception"""
     if msg: msg += ": "
     suffix = C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e)
-    logthis(msg,LL.ERROR,prefix,suffix)
+    logthis(msg, LL.ERROR, prefix, suffix)
     log_traceback()
 
 def openlog(fname="rainwatch.log"):
+    """open log file"""
+    from rwatch import __version__, __date__, gitinfo
     global loghand
     prxname = os.path.basename(sys.argv[0])
     try:
-        loghand = codecs.open(fname,'a','utf-8')
+        loghand = codecs.open(fname, 'a', 'utf-8')
         writelog("Logging started.\n")
-        writelog("%s - Version %s (%s)\n" % (prxname,__main__.xsetup.version,__main__.xsetup.vdate))
+        writelog("%s - Version %s (%s)\n" % (prxname, __version__, __date__))
         return True
     except Exception as e:
-        logthis("Failed to open logfile '%s' for writing:" % (fname),suffix=e,loglevel=LL.ERROR)
+        logthis("Failed to open logfile '%s' for writing:" % (fname), suffix=e, loglevel=LL.ERROR)
         return False
 
 def closelog():
@@ -213,14 +211,14 @@ def closelog():
 def writelog(logmsg):
     global loghand
     if loghand:
-        loghand.write(u"[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"),decolor(logmsg)))
+        loghand.write(u"[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"), decolor(logmsg)))
         loghand.flush()
 
 def log_traceback():
     traceback.print_exc(file=loghand)
 
 def decolor(instr):
-    return re.sub(u'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)',u'',instr)
+    return re.sub(r'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)', u'', instr)
 
 def loglevel(newlvl=None):
     global g_loglevel
@@ -228,8 +226,8 @@ def loglevel(newlvl=None):
         g_loglevel = newlvl
     return g_loglevel
 
-def failwith(etype,errmsg):
-    logthis(errmsg,loglevel=LL.ERROR)
+def failwith(etype, errmsg):
+    logthis(errmsg, loglevel=LL.ERROR)
 
     raise xbError(etype)
 
@@ -237,4 +235,4 @@ def exceptionHandler(exception_type, exception, traceback):
     print u"%s: %s" % (exception_type.__name__, exception)
 
 def print_r(ind):
-    return json.dumps(ind,indent=4,separators=(',', ': '))
+    return json.dumps(ind, indent=4, separators=(',', ': '))

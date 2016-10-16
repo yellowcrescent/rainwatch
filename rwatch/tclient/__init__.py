@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 # coding=utf-8
-###############################################################################
-#
-# tclient - rwatch/tclient/__init__.py
-# Rainwatch: Torrent client abstraction functions
-#
-# @author   J. Hipps <jacob@ycnrg.org>
-# @repo     https://bitbucket.org/yellowcrescent/rainwatch
-#
-# Copyright (c) 2016 J. Hipps / Neo-Retro Group
-#
-# https://ycnrg.org/
-#
-###############################################################################
+# vim: set ts=4 sw=4 expandtab syntax=python:
+"""
+
+rwatch.tclient
+Rainwatch > Torrent client abstraction functions
+
+Copyright (c) 2016 J. Hipps / Neo-Retro Group
+https://ycnrg.org/
+
+@author     Jacob Hipps <jacob@ycnrg.org>
+@repo       https://git.ycnrg.org/projects/YRW/repos/rainwatch
+
+"""
 
 import os
 import sys
@@ -21,8 +21,7 @@ import re
 from rwatch.logthis import *
 from rwatch.util import *
 
-import deluge
-import rtorrent
+from rwatch.tclient import deluge, rtorrent
 
 tc_lut = { 'deluge': deluge.delcon, 'rtorrent': rtorrent.rtcon }
 
@@ -71,6 +70,6 @@ class TorrentClient(object):
     def _undefined(self, aname):
         """capture unhandled method calls"""
         def _undef(**kwargs):
-            kwlist = ','.join(map(lambda x: u"%s=%s" % (x,kwargs[x]), kwargs))
+            kwlist = ', '.join(map(lambda x: u"%s=%s" % (x, kwargs[x]), kwargs))
             logthis("Unhandled method call:", suffix=u"%s(%s)" % (aname, kwlist), loglevel=LL.WARNING)
         return _undef
