@@ -1,0 +1,17 @@
+[REPORTS]
+output-format=parseable
+reports=no
+
+[MESSAGES CONTROL]
+disable=R,I,deprecated-lambda,global-statement,superfluous-parens,bare-except,broad-except,bad-continuation,bad-builtin,unnecessary-lambda,multiple-statements
+
+[FORMAT]
+max-line-length=120
+expected-line-ending-format=LF
+
+[BASIC]
+good-names=e,f,u,x,C,oparser,xopts,xsetup
+variable-rgx=[a-z_][a-z0-9_]{1,30}$
+
+[DESIGN]
+max-args=10

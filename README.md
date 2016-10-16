@@ -1,8 +1,8 @@
 
 # Rainwatch
-*rainwatch* is a tool for managing downloads from the Deluge torrent client. It can be called via the Execute plugin when a torrent download has completed, and rainwatch will then connect to deluged via its RPC interface and move the file or folder to the location specified in the config file.
+*rainwatch* is a tool for managing downloads from the Deluge or rTorrent torrent clients. It can be triggered when a torrent download has completed, and rainwatch will then connect to the torrent daemon via its RPC interface and move the file or folder to the location specified in the config file.
 
-The config file contains a list of rules and regular expressions to match files, where to move them, and so on. Moving files and folders (and renaming them) is done via the Deluge RPC interface, so the torrent will still be active and seeding in the client, without the need for copying or creating symlinks.
+The config file contains a list of rules and regular expressions to match files, where to move them, and so on. Moving files and folders (and renaming them) is done via the RPC interface for Deluge, so the torrent will still be active and seeding in the client, without the need for copying or creating symlinks.
 
 ## License
 ```
@@ -60,8 +60,10 @@ It is recommended to use the Archipel Project's fork of xmpppy, which has fixed 
 	git clone https://git.ycnrg.org/scm/yrw/rainwatch.git
 	cd rainwatch
 	sudo python setup.py install
+	npm install
+	gulp
 
-Alternatively, use `develop` to allow for easy updates:
+Alternatively, use `develop` (instead of `install`) to allow for easy updates or development work:
 
 	sudo python setup.py develop
 

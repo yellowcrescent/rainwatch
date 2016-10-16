@@ -6,3 +6,4 @@ dist
 fonts
 *.pid
 *.log
+node_modules
