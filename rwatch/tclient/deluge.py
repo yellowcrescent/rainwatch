@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -163,7 +163,7 @@ class delcon:
     def __remap_tinfo_all(self, inlist):
         """remap dict of deluge torrents to rainwatch tinfo schema"""
         listout = {}
-        for tkey, tdata in inlist.iteritems():
+        for tkey, tdata in inlist.items():
             listout[tkey] = self.__remap_tinfo(tdata)
         return listout
 
@@ -171,19 +171,19 @@ class delcon:
         """remap deluge-specific schema to rainwatch tinfo schema"""
         # remap most values
         newdata = { map_tinfo[ikey]: ival for ikey, ival in indata.items() }
-        if newdata.has_key(None): del(newdata[None])
+        if None in newdata: del(newdata[None])
 
         # set other unmapped or extrapolated values
-        if indata.has_key('save_path') and indata.has_key('name'):
+        if 'save_path' in indata and 'name' in indata:
             newdata['path'] = "%s/%s" % (indata['save_path'], indata['name'])
 
         # build file list
-        if indata.has_key('files'):
+        if 'files' in indata:
             newfiles = []
             for tnum, tf in enumerate(indata['files']):
                 # remap file object
                 newfile = { map_tinfo_files[tfk]: tfv for tfk, tfv in tf.items() }
-                if newfile.has_key(None): del(newfile[None])
+                if None in newfile: del(newfile[None])
                 # set unmapped values
                 newfile['progress'] = indata['file_progress'][tnum] * 100.0
                 newfile['priority'] = indata['file_priorities'][tnum]
@@ -192,12 +192,12 @@ class delcon:
             newdata['files'] = tuple(newfiles)
 
         # build tracker list
-        if indata.has_key('trackers'):
+        if 'trackers' in indata:
             newtracks = []
             for tnum, tf in enumerate(indata['trackers']):
                 # remap tracker object
                 newtrack = { map_tinfo_trackers[tfk]: tfv for tfk, tfv in tf.items() }
-                if newtrack.has_key(None): del(newtrack[None])
+                if None in newtrack: del(newtrack[None])
                 # set unmapped values
                 newtrack['success_count'] = None
                 newtrack['enabled'] = True

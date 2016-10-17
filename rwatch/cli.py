@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -33,13 +33,13 @@ def show_banner():
     """
     Display banner
     """
-    print ""
-    print C.CYN, "*** ", C.WHT, "rainwatch", C.OFF
-    print C.CYN, "*** ", C.CYN, "Version", __version__, "(" + __date__ + ")", C.OFF
-    print C.CYN, "*** ", C.GRN, "Copyright (c) 2016 J. Hipps / Neo-Retro Group", C.OFF
-    print C.CYN, "*** ", C.GRN, "J. Hipps <jacob@ycnrg.org>", C.OFF
-    print C.CYN, "*** ", C.YEL, "https://ycnrg.org/", C.OFF
-    print ""
+    print("")
+    print(C.CYN, "*** ", C.WHT, "rainwatch", C.OFF)
+    print(C.CYN, "*** ", C.CYN, "Version", __version__, "(" + __date__ + ")", C.OFF)
+    print(C.CYN, "*** ", C.GRN, "Copyright (c) 2016 J. Hipps / Neo-Retro Group", C.OFF)
+    print(C.CYN, "*** ", C.GRN, "J. Hipps <jacob@ycnrg.org>", C.OFF)
+    print(C.CYN, "*** ", C.YEL, "https://ycnrg.org/", C.OFF)
+    print("")
 
 def parse_cli():
     """
@@ -97,10 +97,10 @@ def mode_list():
         torlist = dlx.getTorrentList(filter=fltr)
 
     if config.run['json']:
-        print json.dumps(torlist, indent=4, separators=(',', ': '))
+        print(json.dumps(torlist, indent=4, separators=(',', ': ')))
     else:
-        for ti, tv in torlist.iteritems():
-            print "%s: %s (%0.01f) [%s]" % (ti, tv['name'], tv['progress'], tv['tracker_host'])
+        for ti, tv in torlist.items():
+            print("%s: %s (%0.01f) [%s]" % (ti, tv['name'], tv['progress'], tv['tracker_host']))
     return 0
 
 def mode_chook(tid):
@@ -147,7 +147,7 @@ def mode_move(tid, destdir):
     # get torrent data
     logthis(">> Retrieving torrent data for", suffix=tid, loglevel=LL.INFO)
     tordata = dlx.getTorrent(tid)
-    fnewpath = unicode(os.path.realpath(destdir), 'utf-8') + u'/' + tordata['name']
+    fnewpath = os.path.realpath(destdir) + '/' + tordata['name']
     logthis(">> Moving: %s ->" % (tordata['path']), suffix=fnewpath, loglevel=LL.INFO)
 
      # move to destination dir

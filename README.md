@@ -54,6 +54,20 @@ It is recommended to use the Archipel Project's fork of xmpppy, which has fixed 
 	cd xmpppy
 	sudo python setup.py install
 
+#### Python 3.5
+
+Python 3.5 is recommended, but other versions of Python 3.x may work. On Ubuntu 14.04 or Debian 8.x:
+
+	sudo add-apt-repository ppa:fkrull/deadsnakes
+	sudo apt-get update
+	sudo apt-get install python3.5-complete libpython3.5-dev libpython3.5-stdlib
+	wget https://bootstrap.pypa.io/get-pip.py
+	sudo python3.5 get-pip.py
+
+The pip installer will update your default pip and pip3 packages to use Python 3.5, which is probably not what you want. To revert back to the defaults:
+
+	sudo sed -i 's/python3.5$/python/' `which pip`
+	sudo sed -i 's/python3.5$/python3/' `which pip3`
 
 ### Rainwatch install
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -37,7 +37,7 @@ def spawn(xconfig):
     dadpid = os.getpid()
     try:
         pid = os.fork()
-    except OSError, e:
+    except OSError as e:
         logthis("os.fork() failed:", suffix=e, loglevel=LL.ERROR)
         failwith(ER.PROCFAIL, "Failed to fork worker. Aborting.")
 

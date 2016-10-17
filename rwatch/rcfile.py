@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -17,7 +17,7 @@ https://ycnrg.org/
 import os
 import re
 import codecs
-import ConfigParser
+import configparser
 
 from rwatch import *
 from rwatch.logthis import *
@@ -62,7 +62,7 @@ def parse(xtraConf=None):
     logthis("Parsing any local, user, or system RC files...", loglevel=LL.DEBUG)
 
     # use ConfigParser to parse the rcfiles
-    rcpar = ConfigParser.RawConfigParser()
+    rcpar = configparser.RawConfigParser()
     rcfile = None
     if len(rcl):
         rcfile = os.path.realpath(rcl[0])
@@ -72,7 +72,7 @@ def parse(xtraConf=None):
             # ...damn you python 2 and your shitty unicode bodgery
             with codecs.open(rcfile, 'r', encoding='utf-8') as f:
                 rcpar.readfp(f)
-        except ConfigParser.ParsingError as e:
+        except configparser.ParsingError as e:
             logthis("Error parsing config file: %s" % e, loglevel=LL.ERROR)
             return False
 
@@ -98,7 +98,7 @@ def parseFile(fpath):
     logthis("Parsing RC file:", suffix=fpath, loglevel=LL.DEBUG)
 
     # use ConfigParser to parse the rcfiles
-    rcpar = ConfigParser.SafeConfigParser()
+    rcpar = configparser.SafeConfigParser()
     rcfile = None
     if os.path.exists(os.path.expanduser(fpath)):
         rcfile = os.path.realpath(os.path.expanduser(fpath))
@@ -108,7 +108,7 @@ def parseFile(fpath):
             # ...damn you python 2 and your shitty unicode bodgery
             with codecs.open(rcfile, 'r', encoding='utf-8') as f:
                 rcpar.readfp(f)
-        except ConfigParser.ParsingError as e:
+        except configparser.ParsingError as e:
             logthis("Error parsing config file: %s" % e, loglevel=LL.ERROR)
             return False
     else:
@@ -137,7 +137,7 @@ def merge(inrc, cops):
     # set defaults first
     for dsec in defaults:
         # create sub dict for this section, if not exist
-        if not outrc.has_key(dsec):
+        if dsec not in outrc:
             outrc[dsec] = {}
         # loop through the keys
         for dkey in defaults[dsec]:
@@ -148,7 +148,7 @@ def merge(inrc, cops):
     # set options defined in rcfile, overriding defaults
     for dsec in inrc:
         # create sub dict for this section, if not exist
-        if not outrc.has_key(dsec):
+        if dsec not in outrc:
             outrc[dsec] = {}
         # loop through the keys
         for dkey in inrc[dsec]:
@@ -162,14 +162,14 @@ def merge(inrc, cops):
             # Strip quotes and perform type-conversion for ints and floats
             # only perform conversion if key exists in defaults
             if keyok:
-                if type(outrc[dsec][dkey]) == int:
+                if isinstance(outrc[dsec][dkey], int):
                     try:
                         tkval = int(qstrip(inrc[dsec][dkey]))
                     except ValueError as e:
                         logthis("Unable to convert value to integer. Check config option value. Value:",
                                 prefix="%s:%s" % (dsec, dkey), suffix=qstrip(inrc[dsec][dkey]), loglevel=LL.ERROR)
                         continue
-                elif type(outrc[dsec][dkey]) == float:
+                elif isinstance(outrc[dsec][dkey], float):
                     try:
                         tkval = float(qstrip(inrc[dsec][dkey]))
                     except ValueError as e:
@@ -188,7 +188,7 @@ def merge(inrc, cops):
     # add in cli options
     for dsec in cops:
         # create sub dict for this section, if not exist
-        if not outrc.has_key(dsec):
+        if dsec not in outrc:
             outrc[dsec] = {}
         # loop through the keys
         for dkey in cops[dsec]:
@@ -214,7 +214,7 @@ def optexpand(iop):
     outrc = {}
     for i in iop:
         dsec, dkey = i.split(".")
-        if not outrc.has_key(dsec):
+        if dsec not in outrc:
             outrc[dsec] = {}
         outrc[dsec][dkey] = iop[i]
     logthis("Expanded cli optdex:", suffix=outrc, loglevel=LL.DEBUG2)

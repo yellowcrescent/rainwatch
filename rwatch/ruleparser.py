@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -45,9 +45,9 @@ def parse(xconfig):
     rfile = xconfig.core['rules']
     rlist = rcfile.parseFile(rfile)
 
-    for k, v in rlist.iteritems():
+    for k, v in rlist.items():
         tset = {}
-        for sk, sv in v.iteritems():
+        for sk, sv in v.items():
             sk = sk.lower()
             if sk == 'match':
                 # match directive
@@ -99,7 +99,7 @@ def match(tordata):
     fmatch = False
 
     # check each ruleset for a match
-    for k, v in rules.iteritems():
+    for k, v in rules.items():
         if check_ruleset(tordata, k) == True:
             fmatch = k
             break
@@ -128,7 +128,7 @@ def check_ruleset(tordata, rname, rtype=RTP.RULESET):
     tmatch = False
 
     # check each rule in the ruleset
-    for sk, sv in rset.iteritems():
+    for sk, sv in rset.items():
         sk = sk.lower()
         # get re.pattern string if this is a regex (for debugging purposes only)
         if isinstance(sv, re._pattern_type):
@@ -150,7 +150,7 @@ def check_ruleset(tordata, rname, rtype=RTP.RULESET):
                 if not tor_isfile(tordata): tmatch = True
                 else: tmatch = False
         elif sk == 'type':
-            if groups.has_key(sv.lower()):
+            if sv.lower() in groups:
                 logthis("checking against type/group definition:", prefix=rname, suffix=sv.lower(), loglevel=LL.DEBUG)
                 tmatch = check_ruleset(tordata, sv.lower(), RTP.GROUP)
             else:
@@ -173,7 +173,7 @@ def rresolve(rname, rtype=RTP.RULESET):
     """
     rset = getrule(rname, rtype)
 
-    if rset.has_key('type'):
+    if 'type' in rset:
         xrt = rresolve(rset['type'], RTP.GROUP)
     else:
         xrt = {}
@@ -185,7 +185,7 @@ def rresolve(rname, rtype=RTP.RULESET):
 
     # perform var expansion and change re objects into strings
     if rtype == RTP.RULESET:
-        for sk, sv in rout.iteritems():
+        for sk, sv in rout.items():
             if sk == 'moveto':
                 rout['moveto'] = vexpand(sv, rout)
             if isinstance(sv, re._pattern_type):
@@ -206,7 +206,7 @@ def getrule(rname, rtype=RTP.RULESET):
 def vexpand(instr, rdata):
     """perform var expansion in (instr) using data from (rdata)"""
     outstr = copy(instr)
-    for tk, tv in rdata.iteritems():
+    for tk, tv in rdata.items():
         rpterm = "{%s}" % (tk)
         if outstr.find(rpterm) >= 0:
             outstr = outstr.replace(rpterm, tv)

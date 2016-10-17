@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 
 from setuptools import setup, find_packages
 setup(
     name = "rainwatch",
-    version = "0.11.18",
+    version = "0.12.0",
     author = "Jacob Hipps",
     author_email = "jacob@ycnrg.org",
     license = "MIT",

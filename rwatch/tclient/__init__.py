@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -52,7 +52,7 @@ class TorrentClient(object):
             client = client.lower()
 
         # check if client is supported
-        if not tc_lut.has_key(client):
+        if client not in tc_lut:
             failwith(ER.OPT_BAD, "Invalid torrent client specification '%s'" % (client))
 
         # spawn torrent client
@@ -70,6 +70,6 @@ class TorrentClient(object):
     def _undefined(self, aname):
         """capture unhandled method calls"""
         def _undef(**kwargs):
-            kwlist = ', '.join(map(lambda x: u"%s=%s" % (x, kwargs[x]), kwargs))
-            logthis("Unhandled method call:", suffix=u"%s(%s)" % (aname, kwlist), loglevel=LL.WARNING)
+            kwlist = ', '.join(["%s=%s" % (x, kwargs[x]) for x in kwargs])
+            logthis("Unhandled method call:", suffix="%s(%s)" % (aname, kwlist), loglevel=LL.WARNING)
         return _undef

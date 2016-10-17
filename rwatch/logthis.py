@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -117,15 +117,15 @@ def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
     global g_loglevel
 
     try:
-        zline = u''
+        zline = ''
         if not ccode:
             if loglevel == LL.ERROR: ccode = C.RED
             elif loglevel == LL.WARNING: ccode = C.YEL
             elif loglevel == LL.PROMPT: ccode = C.WHT
-            else: ccode = u""
-        if prefix: zline += C.WHT + unify(prefix) + u": " + C.OFF
-        zline += ccode + unify(logline) + C.OFF
-        if suffix: zline += u" " + C.CYN + unify(suffix) + C.OFF
+            else: ccode = ""
+        if prefix: zline += C.WHT + str(prefix) + ": " + C.OFF
+        zline += ccode + str(logline) + C.OFF
+        if suffix: zline += " " + C.CYN + str(suffix) + C.OFF
 
         # get traceback info
         lframe = inspect.stack()[1][0]
@@ -136,29 +136,29 @@ def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
         try:
             lfile = os.path.splitext(os.path.basename(lfile))[0]
         except:
-            lfile = u'(error)'
+            lfile = '(error)'
 
         if mod:
-            lmodname = unicode(mod.__name__)
-            xmessage = u" "
+            lmodname = str(mod.__name__)
+            xmessage = " "
         else:
-            lmodname = unicode(__name__)
-            xmessage = unicode(data)
-        if lmodname == u"__main__":
-            lmodname = u"rainwatch"
-            lfunc = u"(main)"
+            lmodname = str(__name__)
+            xmessage = str(data)
+        if lmodname == "__main__":
+            lmodname = "rainwatch"
+            lfunc = "(main)"
 
         if g_loglevel > LL.INFO:
-            dbxmod = u'%s[%s:%s%s%s:%s] ' % (C.WHT, lmodname, C.YEL, lfunc, C.WHT, lline)
+            dbxmod = '%s[%s:%s%s%s:%s] ' % (C.WHT, lmodname, C.YEL, lfunc, C.WHT, lline)
         else:
             dbxmod = ''
 
-        finline = u'%s%s<%s>%s %s%s\n' % (dbxmod, C.RED, LL.lname[loglevel], C.WHT, zline, C.OFF)
+        finline = '%s%s<%s>%s %s%s\n' % (dbxmod, C.RED, LL.lname[loglevel], C.WHT, zline, C.OFF)
 
     except Exception as e:
-        finline = C.RED + u"Exception thrown in logthis(): " + \
-                  C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + \
-                  C.YEL + str(e) + C.OFF + u"\n"
+        finline = C.RED + "Exception thrown in logthis(): " + \
+                  C.WHT + "[" + C.YEL + str(e.__class__.__name__) + C.WHT + "] " + \
+                  C.YEL + str(e) + C.OFF + "\n"
 
     # write log message
     if g_loglevel >= loglevel:
@@ -167,19 +167,11 @@ def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
     # write to logfile
     writelog(finline)
 
-def unify(indata):
-    """coerce input data to unicode string"""
-    if isinstance(indata, str):
-        indata_str = str(indata).decode('utf-8')
-    else:
-        indata_str = unicode(indata)
-
-    return indata_str
 
 def logexc(e, msg, prefix=None):
     """log exception"""
     if msg: msg += ": "
-    suffix = C.WHT + u"[" + C.YEL + str(e.__class__.__name__) + C.WHT + u"] " + C.YEL + str(e)
+    suffix = C.WHT + "[" + C.YEL + str(e.__class__.__name__) + C.WHT + "] " + C.YEL + str(e)
     logthis(msg, LL.ERROR, prefix, suffix)
     log_traceback()
 
@@ -211,14 +203,14 @@ def closelog():
 def writelog(logmsg):
     global loghand
     if loghand:
-        loghand.write(u"[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"), decolor(logmsg)))
+        loghand.write("[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"), decolor(logmsg)))
         loghand.flush()
 
 def log_traceback():
     traceback.print_exc(file=loghand)
 
 def decolor(instr):
-    return re.sub(r'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)', u'', instr)
+    return re.sub(r'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)', '', instr)
 
 def loglevel(newlvl=None):
     global g_loglevel
@@ -232,7 +224,7 @@ def failwith(etype, errmsg):
     raise xbError(etype)
 
 def exceptionHandler(exception_type, exception, traceback):
-    print u"%s: %s" % (exception_type.__name__, exception)
+    print("%s: %s" % (exception_type.__name__, exception))
 
 def print_r(ind):
     return json.dumps(ind, indent=4, separators=(',', ': '))
