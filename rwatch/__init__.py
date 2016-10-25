@@ -18,8 +18,8 @@ https://ycnrg.org/
 from rwatch.util import XConfig, git_info_raw
 from rwatch.logthis import *
 
-__version__ = "0.11.18"
-__date__ = "15 Oct 2016"
+__version__ = "0.12.0"
+__date__ = "23 Oct 2016"
 
 __all__ = ['gitinfo', 'defaults', '__version__', '__date__']
 
@@ -74,7 +74,9 @@ defaults = {
                 'user': None,
                 'pass': None,
                 'server': None,
-                'sendto': None
+                'sendto': None,
+                'avatar_img': None,
+                'nick': None
             },
             'deluge': {
                 'user': "",

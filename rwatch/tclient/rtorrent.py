@@ -133,7 +133,7 @@ class rtcon:
 
     def __init__(self, uri, abortfail=True):
         """connect to deluged and authenticate"""
-        logthis("Connecting to rTorrent RPC via", suffix=uri, loglevel=LL.INFO)
+        logthis("Connecting to rTorrent RPC via", suffix=uri, loglevel=LL.VERBOSE)
         self.xcon = xmlrpc.client.ServerProxy(uri)
         mcx = multicall(self.xcon)
         try:
@@ -144,8 +144,8 @@ class rtcon:
                 failwith(ER.CONF_BAD, "Connection to rTorrent failed. Aborting.")
             else:
                 return
-        logthis("Connected to rTorrent OK", ccode=C.GRN, loglevel=LL.INFO)
-        logthis("rTorrent %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.INFO)
+        logthis("Connected to rTorrent OK", ccode=C.GRN, loglevel=LL.VERBOSE)
+        logthis("rTorrent %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.VERBOSE)
         self.connected = True
 
     def getTorrent(self, torid):

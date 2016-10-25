@@ -68,6 +68,35 @@ map_tinfo_trackers = defaultdict(lambda: None, {
             })
 
 
+class DelugeRPCUnicode(DelugeRPCClient):
+    """
+    wrapper around DelugeRPCClient that decodes strings as Unicode
+    instead of returning them as byte arrays. This can optionally
+    be bypassed to receive the raw bytes, if necessary
+    """
+    def call(self, method, *args, **kwargs):
+        result = super(DelugeRPCUnicode, self).call(method, *args, **kwargs)
+
+        def _uniconv(bval, errors='ignore'):
+            if isinstance(bval, bytes):
+                return bval.decode(errors=errors)
+            elif isinstance(bval, str):
+                return bval
+            elif isinstance(bval, list):
+                return [_uniconv(li, errors) for li in bval]
+            elif isinstance(bval, tuple):
+                return tuple([_uniconv(li, errors) for li in bval])
+            elif isinstance(bval, dict):
+                return {_uniconv(lk, errors): _uniconv(lv, errors) for lk, lv in bval.items()}
+            else:
+                return bval
+
+        return _uniconv(result)
+
+    def call_raw(self, method, *args, **kwargs):
+        return super(DelugeRPCUnicode, self).call(method, *args, **kwargs)
+
+
 class delcon:
     """class for handling Deluge RPC comms"""
     xcon = None
@@ -82,8 +111,8 @@ class delcon:
 
     def __init__(self, duser, dpass, dhost='localhost', dport=58846, abortfail=True):
         """connect to deluged and authenticate"""
-        logthis("Connecting to deluged on", suffix="%s:%d" % (dhost, dport), loglevel=LL.INFO)
-        self.xcon = DelugeRPCClient(dhost, dport, duser, dpass)
+        logthis("Connecting to deluged on", suffix="%s:%d" % (dhost, dport), loglevel=LL.VERBOSE)
+        self.xcon = DelugeRPCUnicode(dhost, dport, duser, dpass)
         try:
             self.xcon.connect()
             self.client_version = self.xcon.call('daemon.info')
@@ -91,8 +120,8 @@ class delcon:
         except Exception as e:
             logthis("Failed to connect to Deluge:", suffix=e, loglevel=LL.ERROR)
             if abortfail: failwith(ER.CONF_BAD, "Connection to Deluge failed. Aborting.")
-        logthis("Connected to Deluge OK", ccode=C.GRN, loglevel=LL.INFO)
-        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.INFO)
+        logthis("Connected to Deluge OK", ccode=C.GRN, loglevel=LL.VERBOSE)
+        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.VERBOSE)
         self.connected = True
 
     def getTorrent(self, torid):

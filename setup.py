@@ -15,12 +15,13 @@ setup(
     packages = find_packages(),
     scripts = [],
 
-    install_requires = ['docutils','setproctitle','pymongo','redis','pymediainfo','enzyme','deluge-client','xmpppy','paramiko','flask>=0.10.1','requests>=2.2.1','arrow'],
+    install_requires = ['docutils', 'setproctitle', 'pymongo', 'redis', 'pymediainfo', 'enzyme',
+                        'deluge-client', 'paramiko', 'flask>=0.10.1', 'requests>=2.2.1',
+                        'arrow', 'sleekxmpp>=1.4.0', 'dnspython', 'Pillow>=3.4.0'],
 
     package_data = {
         '': [ '*.md' ],
     },
-
 
     entry_points = {
         'console_scripts': [ 'rainwatch = rwatch.cli:_main' ]

@@ -65,7 +65,7 @@ def parse(xconfig):
                 # moveto directive
                 tset['moveto'] = sv
                 if not os.path.isdir(sv):
-                    logthis("moveto path does not exist:", prefix=k, suffix=sv, loglevel=LL.WARNING)
+                    logthis("moveto path does not exist:", prefix=k, suffix=sv, loglevel=LL.VERBOSE)
             elif sk == 'type':
                 # type attribute
                 tset['type'] = sv.lower()

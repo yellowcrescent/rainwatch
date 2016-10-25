@@ -22,7 +22,7 @@ from setproctitle import setproctitle
 from flask import Flask, json, make_response, request
 
 from rwatch.logthis import *
-from rwatch import queue, jabber, db, ruleparser, tclient
+from rwatch import queue, jabber, db, ruleparser, tclient, gitinfo, __version__, __date__
 from rwatch.util import *
 
 # rainwatch server Flask object
@@ -35,6 +35,7 @@ def start(xconfig):
     """
     Start Rainwatch daemon
     """
+    global config, rdx, dlx
     # first, fork
     if not xconfig.srv['nofork']: dfork()
     config = xconfig
@@ -48,7 +49,7 @@ def start(xconfig):
 
     # spawn jabber handler
     if xconfig.xmpp['user'] and xconfig.xmpp['pass']:
-        jabber.spawn()
+        jabber.spawn(xconfig)
         jabber.setup(xconfig)
     else:
         logthis("!! Not spawning Jabber client, no JID defined in rc file", loglevel=LL.WARNING)

@@ -165,6 +165,7 @@ def mode_move(tid, destdir):
 
 def _main():
     """entry point"""
+    global config, dlx
 
     # Show banner
     if len(sys.argv) < 2 or sys.argv[1] != '--version' and not (len(sys.argv[1]) > 1 and sys.argv[1][1] == 'q'):

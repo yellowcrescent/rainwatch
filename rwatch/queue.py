@@ -181,7 +181,7 @@ def cb_xfer(jdata):
 
         # xfer via scp
         try:
-            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name'])).decode('utf-8')
+            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name']))
             logthis("tgpath:", suffix=tgpath, loglevel=LL.DEBUG)
         except Exception as e:
             logexc(e, "Failed to perform string interpolation for tgpath")
@@ -216,10 +216,10 @@ def cb_xfer(jdata):
         tsize_str = fmtsize(tsize)
         trate_str = fmtsize(trate, rate=True)
         trate_bstr = fmtsize(trate, rate=True, bits=True)
-        jabber.send('sendmsg', {'jid': conf.xmpp['sendto'],
-                    'msg': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" %
+        jabber.send('send_message', {'mto': conf.xmpp['sendto'],
+                    'mbody': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" %
                     (tordata['name'], tsize_str, xdelta_str, trate_str, trate_bstr)})
-        jabber.send('set_status', { 'show': "chat", 'status': "Ready" })
+        jabber.send('set_status', { 'show': None, 'status': "Ready" })
 
     # done
     rsh.close()
