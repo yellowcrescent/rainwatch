@@ -62,8 +62,11 @@ def start(xconfig, qname="xfer"):
     rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },
                    prefix=conf.redis['prefix'])
 
-    # Connect to Deluge
+    # Connect to torrent client
     dlx = tclient.TorrentClient(xconfig)
+
+    # Set up Jabber access
+    jabber.setup(xconfig)
 
     # Set queue callbacks
     handlers = {
