@@ -1,10 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
 
 rwatch.jabber
 Rainwatch > Jabber/XMPP client
+
+XMPP client using SleekXMPP <http://sleekxmpp.com/>
 
 Copyright (c) 2016 J. Hipps / Neo-Retro Group
 https://ycnrg.org/
@@ -14,30 +16,44 @@ https://ycnrg.org/
 
 """
 
-import sys
 import os
+import sys
 import json
+import logging
+import ssl
 import time
-import xmpp
-from setproctitle import setproctitle
 
-from rwatch.logthis import *
+import arrow
+from setproctitle import setproctitle
+from PIL import Image
+from sleekxmpp import ClientXMPP, JID
+from sleekxmpp.exceptions import IqError, IqTimeout, XMPPError
+from sleekxmpp.version import __version__ as sleekxmpp_version
+
+from rwatch import __version__, __date__
 from rwatch import db
+from rwatch.logthis import *
+
+# valid presence states
+PSTATES = (None, "dnd", "xa", "away", "chat")
 
 jbx = None
 rdx = None
+conf = None
 
 def spawn(xconfig):
     """
-    spawn a Jabber client in its own little thread
+    spawn a Jabber client in its own process
     """
+    global conf
     conf = xconfig
+
     # Fork into its own process
     logthis("Forking...", loglevel=LL.DEBUG)
     dadpid = os.getpid()
     try:
         pid = os.fork()
-    except OSError, e:
+    except OSError as e:
         logthis("os.fork() failed:", suffix=e, loglevel=LL.ERROR)
         failwith(ER.PROCFAIL, "Failed to fork worker. Aborting.")
 
@@ -55,15 +71,16 @@ def spawn(xconfig):
                    prefix=conf.redis['prefix'])
 
     # Create Jabber client object
-    jbx = client(conf.xmpp['user'], conf.xmpp['pass'], redis=rdx)
+    jbx = XClient(jid=conf.xmpp['user'], password=conf.xmpp['pass'], avatar_img=conf.xmpp['avatar_img'],
+                  nick=conf.xmpp['nick'], redis_con=rdx)
+
+    logthis("Spawning non-blocking threads to handle XMPP", loglevel=LL.DEBUG)
+    jbx.process()
 
     # Main loop
-    while(True):
+    while True:
         qiraw = None
         qmsg = None
-
-        # check for incoming messages; block for max of 2 seconds
-        jbx.process(2)
 
         # block until we receive a message; max of 2 seconds
         qiraw = rdx.brpop("jabber_out", 2)
@@ -88,11 +105,12 @@ def spawn(xconfig):
 
         # check if parent is alive
         if not master_alive(dadpid):
-            logthis("Jabber: Master has terminated.", prefix=qname, loglevel=LL.WARNING)
+            logthis("Jabber: Master has terminated.", loglevel=LL.WARNING)
             break
 
     # And exit once we're done
     logthis("*** Jabber terminating", loglevel=LL.INFO)
+    jbx.disconnect(wait=True)
     sys.exit(0)
 
 
@@ -100,7 +118,8 @@ def setup(xconfig):
     """
     setup communication with Jabber process
     """
-    global rdx
+    global rdx, conf
+    conf = xconfig
     rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },
                    prefix=conf.redis['prefix'])
 
@@ -109,7 +128,7 @@ def send(method, params={}):
     """
     send command to jabber client process
     """
-    global rdx
+    global rdx, conf
     if conf.xmpp['user'] and conf.xmpp['pass']:
         rdx.lpush("jabber_out", json.dumps({ 'method': method, 'params': params }))
 
@@ -139,116 +158,155 @@ def master_alive(ppid):
         return True
 
 
-class client:
-    """
-    class for handling XMPP client comms
-    """
-    clx = None
-    ccon = None
-    acon = None
-    rdx = None
-    connected = False
-    ccreds = { 'jid': None, 'jpass': None, 'jserver': None, 'jport': None }
+class XClient(ClientXMPP):
+    host_override = ()
+    avatar_path = None
+    use_tls = True
+    priority = 0
+    nick = None
+    redis = None
+    ready = False
 
-    def __init__(self, juser, jpass, jres='rainwatch', jserver=None, jport=5222, redis=None, abortfail=True):
+    def __init__(self, jid, password, priority=0, avatar_img=None, nick=None, auto_authsub=True,
+                 host=None, port=5222, use_tls=True, use_sslv3=False, redis_con=None):
+        # make parent class do the hard stuff
+        super(XClient, self).__init__(jid, password)
+        self.priority = priority
+        self.nick = nick
+        self.auto_authorize = auto_authsub
+        self.auto_subscribe = auto_authsub
+        self.redis = redis_con
 
-        # derive JID
-        jid = xmpp.protocol.JID(juser+'/'+jres)
-        self.clx = xmpp.Client(jid.getDomain(), debug=[])
+        # Allow overriding SRV records (or specifying host if domain does not provide SRV records)
+        if host is not None:
+            self.host_override = (host, int(port))
 
-        # save connection data, should we need to reconnect later
-        self.ccreds = { 'jid': jid, 'jpass': jpass, 'jserver': jserver, 'jport': jport }
+        # Force SSLv3 if required by server (OpenFire)
+        self.use_tls = use_tls
+        if use_sslv3 is True:
+            self.ssl_version = ssl.PROTOCOL_SSLv3
 
-        # establish connection
-        self.connect(**self.ccreds)
+        # Register event handlers
+        self.add_event_handler("session_start", self.cb_session_start)
+        self.add_event_handler("message", self.cb_message)
 
-        # store redis connection object
-        if redis:
-            self.rdx = redis
+        # Register plugins to support various XEP caps
+        self.register_plugin('xep_0004') # Data Forms <http://xmpp.org/extensions/xep-0004.html>
+        self.register_plugin('xep_0012') # Last Activity <http://xmpp.org/extensions/xep-0012.html>
+        self.register_plugin('xep_0020') # Feature Negotiation <http://xmpp.org/extensions/xep-0020.html>
+        self.register_plugin('xep_0030') # Service Discovery <http://xmpp.org/extensions/xep-0030.html>
+        self.register_plugin('xep_0045') # Multi-User Chat (MUC) <http://xmpp.org/extensions/xep-0045.html>
+        self.register_plugin('xep_0084') # User Avatar <http://xmpp.org/extensions/xep-0084.html>
+        self.register_plugin('xep_0092') # Software Version <http://xmpp.org/extensions/xep-0092.html>
+        self.register_plugin('xep_0153') # vCard-based Avatars <http://xmpp.org/extensions/xep-0153.html>
+        self.register_plugin('xep_0199') # XMPP Ping <http://xmpp.org/extensions/xep-0199.html>
 
-        # setup message handler
-        self.clx.RegisterHandler('message', self.msgHandler)
+        # Set client version
+        self['xep_0030'].add_identity("client", "bot", "Rainwatch")
+        self['xep_0092'].software_name = "Rainwatch (SleekXMPP {})".format(sleekxmpp_version)
+        self['xep_0092'].version = "{} ({})".format(__version__, __date__)
+        self['xep_0092'].os = os.uname().sysname
 
-        # enable presence
-        self.clx.sendInitPresence()
-        self.connected = True
+        if avatar_img is not None:
+            self.avatar_path = os.path.realpath(os.path.expanduser(avatar_img))
 
-    def connect(self, jid, jpass, jres='rainwatch', jserver=None, jport=5222):
-        """connect to jabber server"""
+        self.connect()
 
-        # check if using explicit server/port
-        if jserver: jsx = (jserver, jport)
-        else: jsx = None
+    def connect(self):
+        """connect to XMPP server using initialized parameters"""
+        super(XClient, self).connect(address=self.host_override, use_tls=self.use_tls)
 
-        # if server and port not specified, use the SRV records to determine server name and port
-        crez = self.clx.connect(jsx)
-        if not crez:
-            logthis("Connection to Jabber server failed for", suffix=jid.getUser(), loglevel=LL.ERROR)
-            return False
-        else:
-            self.ccon = crez
-            logthis("Connected to Jabber server via", suffix=crez.upper(), ccode=C.GRN, loglevel=LL.INFO)
+    def cb_session_start(self, event):
+        """session_start callback"""
+        try:
+            self.send_presence(pshow=None, ppriority=self.priority, pnick=self.nick)
+            self.get_roster()
+        except IqError as e:
+            logthis("iq error:", suffix=iq['error']['condition'], loglevel=LL.ERROR)
+            logexc(e, "Session start failed:", prefix="session_start")
+            self.disconnect()
+        except IqTimeout as e:
+            logexc(e, "Connection timed out:", prefix="session_start")
+            self.disconnect()
 
-        # authenticate
-        arez = self.clx.auth(jid.getNode(), jpass, jid.getResource)
-        if not arez:
-            logthis("Failed to authenticate to Jabber server for", suffix=jid.getUser(), loglevel=LL.ERROR)
-            return False
-        else:
-            self.acon = arez
-            logthis("Authenticated to Jabber server via", suffix=arez.upper(), ccode=C.GRN, loglevel=LL.INFO)
+        # If provided, set avatar from supplied image
+        if self.avatar_path is not None:
+            self.set_avatar()
 
+        # We ready!
+        self['xep_0012'].set_last_activity()
+        self.set_status(None, "Ready")
+        self.ready = True
+        logthis("XMPP initialization complete. Ready.", loglevel=LL.VERBOSE)
 
-    def reconnect():
-        """reconnect if the connection has dropped or timed out"""
-        logthis(">> Attempting to re-establish connection to Jabber server...", loglevel=LL.INFO)
-        self.connect(**self.ccreds)
-
-    def sendmsg(self, jid, msg):
-        """send a message (msg) to a user (jid)"""
-        self.clx.send(xmpp.protocol.Message(xmpp.protocol.JID(jid), msg))
-
-    def authorize(self, jid):
-        """authorize a JID"""
-        self.clx.Roster.Authorize(xmpp.protocol.JID(jid))
-
-    def set_status(self, status="", type='available', show='chat'):
-        """
-        broadcast presence information
-        status: human-readable status message
-        types: [available, unavailable, error, probe, subscribe, subscribed, unsubscribe, unsubscribed]
-        show: [away, chat, dnd, xa]
-        """
-        self.clx.send(xmpp.Presence(typ=type, show=show, status=status))
-
-    def msgHandler(self, session, message):
-        """
-        callback handler for received messages & events
-        """
-        # don't bother processing empty messages (typically used for the 'Typing...' notifications)
-        if message.getBody():
-            logthis("[msgHandler] got message from", suffix=str(message.getFrom()), loglevel=LL.DEBUG)
+    def cb_message(self, msg):
+        """message callback"""
+        if msg['type'] in ('chat', 'normal'):
+            logthis("Got message from", suffix=str(msg['from']), loglevel=LL.DEBUG)
             tmsg = {
-                    'id': message.getID(),
-                    'thread': message.getThread(),
-                    'type': message.getType(),
-                    'to': str(message.getTo()),
-                    'from': str(message.getFrom()),
-                    'subject': message.getSubject(),
-                    'body': message.getBody(),
+                    'id': msg['id'],
+                    'thread': msg['thread'],
+                    'type': msg['type'],
+                    'to': str(msg['to']),
+                    'from': str(msg['from']),
+                    'subject': msg['subject'],
+                    'body': str(msg['body']),
                     'time': time.time()
                    }
 
             # push the message onto the jabber_in message stack
-            if self.rdx:
-                self.rdx.lpush("jabber_in", json.dumps(tmsg))
+            if self.redis:
+                self.redis.lpush("jabber_in", json.dumps(tmsg))
 
-    def process(self, timeout=1):
+    def set_status(self, show=None, status=None):
         """
-        run Process with specified timeout
-        used to process events and check for incoming messages
+        set status and send presence notification
+        @show in ("dnd", "xa", "away", None, "chat"); default None (Available)
+        @status is the extra status message
         """
-        self.clx.Process(timeout)
+        self.send_presence(pshow=show, pstatus=status, ppriority=self.priority, pnick=self.nick)
 
-    def __del__(self):
-        self.connected = False
+    def set_avatar(self, imgpath=None, resize=False):
+        """publish avatar from image at supplied path @imgpath"""
+        if imgpath:
+            self.avatar_path = os.path.realpath(os.path.expanduser(imgpath))
+
+        try:
+            with open(self.avatar_path, 'rb') as f:
+                idata = f.read()
+                ilen = os.stat(self.avatar_path).st_size
+            with Image.open(self.avatar_path) as img:
+                isize = img.size
+                imime = Image.MIME[img.format]
+        except FileNotFoundError:
+            logthis("Failed to load avatar from image. File not found:", suffix=self.avatar_path, loglevel=LL.ERROR)
+            return False
+        except OSError as e:
+            logexc(e, "Failed to load avatar from image")
+            return False
+
+        # Publish avatar as described in XEP-0084
+        xep84 = False
+        try:
+            self['xep_0084'].publish_avatar(idata)
+            xep84 = True
+        except XMPPError:
+            logthis("Failed to publish XEP-0084 avatar data", loglevel=LL.WARNING)
+
+        # Update vCard entry with new avatar (XEP-0153)
+        try:
+            self['xep_0153'].set_avatar(avatar=idata, mtype=imime)
+            logthis("Updated vCard entry with new avatar", loglevel=LL.DEBUG)
+        except XMPPError:
+            logthis("Failed to update vCard entry with new avatar", loglevel=LL.WARNING)
+
+        if xep84 is True:
+            try:
+                imetadata = {'id': self['xep_0084'].generate_id(idata), 'type': imime, 'bytes': ilen}
+                self['xep_0084'].publish_avatar_metadata([imetadata])
+            except XMPPError:
+                logthis("Failed to publish XEP-0084 avatar metadata", loglevel=LL.WARNING)
+                return False
+
+        return True
+

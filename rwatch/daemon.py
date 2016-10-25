@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -22,7 +22,7 @@ from setproctitle import setproctitle
 from flask import Flask, json, make_response, request
 
 from rwatch.logthis import *
-from rwatch import queue, jabber, db, ruleparser, tclient
+from rwatch import queue, jabber, db, ruleparser, tclient, gitinfo, __version__, __date__
 from rwatch.util import *
 
 # rainwatch server Flask object
@@ -35,6 +35,7 @@ def start(xconfig):
     """
     Start Rainwatch daemon
     """
+    global config, rdx, dlx
     # first, fork
     if not xconfig.srv['nofork']: dfork()
     config = xconfig
@@ -48,7 +49,7 @@ def start(xconfig):
 
     # spawn jabber handler
     if xconfig.xmpp['user'] and xconfig.xmpp['pass']:
-        jabber.spawn()
+        jabber.spawn(xconfig)
         jabber.setup(xconfig)
     else:
         logthis("!! Not spawning Jabber client, no JID defined in rc file", loglevel=LL.WARNING)
@@ -81,7 +82,7 @@ def dfork():
     try:
         # first fork
         pid = os.fork()
-    except OSError, e:
+    except OSError as e:
         logthis("os.fork() failed:", suffix=e, loglevel=LL.ERROR)
         failwith(ER.PROCFAIL, "Failed to fork into background. Aborting.")
     if (pid == 0):
@@ -90,7 +91,7 @@ def dfork():
         try:
             # second fork
             pid = os.fork()
-        except OSError, e:
+        except OSError as e:
             logthis("os.fork() [2] failed:", suffix=e, loglevel=LL.ERROR)
             failwith(ER.PROCFAIL, "Failed to fork into background. Aborting.")
         if pid:
@@ -277,9 +278,9 @@ def rules_list():
     rlist = ruleparser.list()
 
     # convert any compiled regex to strings
-    for klist, vlist in rlist.iteritems():
-        for k, v in vlist.iteritems():
-            for sk, sv in v.iteritems():
+    for klist, vlist in rlist.items():
+        for k, v in vlist.items():
+            for sk, sv in v.items():
                 if isinstance(sv, re._pattern_type):
                     rlist[klist][k][sk] = sv.pattern
 

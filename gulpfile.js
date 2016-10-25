@@ -88,7 +88,7 @@ var PYERR = { FATAL: 1, ERROR: 2, WARNING: 4, REFACTOR: 8, CONVENTION: 16, USAGE
 
 gulp.task('pylint', function() {
     gutil.log("Running pylint with config file " + C.white(pylintrc));
-    var sout = spawn('pylint', [ '--rcfile=' + pylintrc ].concat(pysource));
+    var sout = spawn('pylint3', [ '--rcfile=' + pylintrc ].concat(pysource));
     if(sout.status & PYERR.USAGE) {
         gutil.log(C.red("pylint reported usage error. Please check gulp config and file locations."))
         throw new Error("pylint failed (" + sout.status + ")");

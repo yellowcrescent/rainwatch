@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -99,10 +99,10 @@ class rainshell(paramiko.client.SSHClient):
             flist = [ '/'+xname ]
             totsize = os.lstat(rps).st_size
 
-        logthis(u">> Xfer [%s] -> [%s]" % (src, dest), loglevel=LL.INFO)
-        logthis(u">> Files: %d / Dirs: %d / Size: %s" % (len(flist), len(dlist), fmtsize(totsize)), loglevel=LL.INFO)
-        logthis(u"dlist:\n", suffix=print_r(dlist), loglevel=LL.DEBUG)
-        logthis(u"flist:\n", suffix=print_r(flist), loglevel=LL.DEBUG)
+        logthis(">> Xfer [%s] -> [%s]" % (src, dest), loglevel=LL.INFO)
+        logthis(">> Files: %d / Dirs: %d / Size: %s" % (len(flist), len(dlist), fmtsize(totsize)), loglevel=LL.INFO)
+        logthis("dlist:\n", suffix=print_r(dlist), loglevel=LL.DEBUG)
+        logthis("flist:\n", suffix=print_r(flist), loglevel=LL.DEBUG)
 
         # check that we have enough free space on target device
         dfree = self.df(dest)
@@ -137,7 +137,7 @@ class rainshell(paramiko.client.SSHClient):
 
         # copy files
         for xtf in flist:
-            logthis(u">> [put] %s -> %s" % (localbase+xtf, dest+xtf), loglevel=LL.VERBOSE)
+            logthis(">> [put] %s -> %s" % (localbase+xtf, dest+xtf), loglevel=LL.VERBOSE)
             self.xfer_stats['cur_file'] = xtf
             self.rsc.put(localbase+xtf, dest+xtf, callback=self._progress)
             self.xfer_stats['files_done'] += 1
@@ -150,7 +150,7 @@ class rainshell(paramiko.client.SSHClient):
         """
         get free diskspace for a given input path
         """
-        dfo = self.rexec('df -P "%s"' % (path)).splitlines()[1].split()
+        dfo = self.rexec('df -P "%s"' % (path)).decode(errors='ignore').splitlines()[1].split()
         dfx = {'dev': dfo[0], 'total': int(dfo[1]) * 1024, 'used': int(dfo[2]) * 1024, 'free': int(dfo[3]) * 1024,
                'usage': (float(dfo[2]) / float(dfo[1]) * 100.0), 'mount': dfo[5]}
         return dfx

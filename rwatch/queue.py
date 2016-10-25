@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -45,7 +45,7 @@ def start(xconfig, qname="xfer"):
     dadpid = os.getpid()
     try:
         pid = os.fork()
-    except OSError, e:
+    except OSError as e:
         logthis("os.fork() failed:", suffix=e, loglevel=LL.ERROR)
         failwith(ER.PROCFAIL, "Failed to fork worker. Aborting.")
 
@@ -62,8 +62,11 @@ def start(xconfig, qname="xfer"):
     rdx = db.redis({ 'host': conf.redis['host'], 'port': conf.redis['port'], 'db': conf.redis['db'] },
                    prefix=conf.redis['prefix'])
 
-    # Connect to Deluge
+    # Connect to torrent client
     dlx = tclient.TorrentClient(xconfig)
+
+    # Set up Jabber access
+    jabber.setup(xconfig)
 
     # Set queue callbacks
     handlers = {
@@ -181,7 +184,7 @@ def cb_xfer(jdata):
 
         # xfer via scp
         try:
-            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name'])).decode('utf-8')
+            tgpath = ("%s/%s" % (tordata['base_path'], tordata['name']))
             logthis("tgpath:", suffix=tgpath, loglevel=LL.DEBUG)
         except Exception as e:
             logexc(e, "Failed to perform string interpolation for tgpath")
@@ -216,10 +219,10 @@ def cb_xfer(jdata):
         tsize_str = fmtsize(tsize)
         trate_str = fmtsize(trate, rate=True)
         trate_bstr = fmtsize(trate, rate=True, bits=True)
-        jabber.send('sendmsg', {'jid': conf.xmpp['sendto'],
-                    'msg': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" %
+        jabber.send('send_message', {'mto': conf.xmpp['sendto'],
+                    'mbody': "%s -- Transfer Complete (%s) -- Time Elapsed ( %s ) -- Rate [ %s | %s ]" %
                     (tordata['name'], tsize_str, xdelta_str, trate_str, trate_bstr)})
-        jabber.send('set_status', { 'show': "chat", 'status': "Ready" })
+        jabber.send('set_status', { 'show': None, 'status': "Ready" })
 
     # done
     rsh.close()

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -68,6 +68,35 @@ map_tinfo_trackers = defaultdict(lambda: None, {
             })
 
 
+class DelugeRPCUnicode(DelugeRPCClient):
+    """
+    wrapper around DelugeRPCClient that decodes strings as Unicode
+    instead of returning them as byte arrays. This can optionally
+    be bypassed to receive the raw bytes, if necessary
+    """
+    def call(self, method, *args, **kwargs):
+        result = super(DelugeRPCUnicode, self).call(method, *args, **kwargs)
+
+        def _uniconv(bval, errors='ignore'):
+            if isinstance(bval, bytes):
+                return bval.decode(errors=errors)
+            elif isinstance(bval, str):
+                return bval
+            elif isinstance(bval, list):
+                return [_uniconv(li, errors) for li in bval]
+            elif isinstance(bval, tuple):
+                return tuple([_uniconv(li, errors) for li in bval])
+            elif isinstance(bval, dict):
+                return {_uniconv(lk, errors): _uniconv(lv, errors) for lk, lv in bval.items()}
+            else:
+                return bval
+
+        return _uniconv(result)
+
+    def call_raw(self, method, *args, **kwargs):
+        return super(DelugeRPCUnicode, self).call(method, *args, **kwargs)
+
+
 class delcon:
     """class for handling Deluge RPC comms"""
     xcon = None
@@ -82,8 +111,8 @@ class delcon:
 
     def __init__(self, duser, dpass, dhost='localhost', dport=58846, abortfail=True):
         """connect to deluged and authenticate"""
-        logthis("Connecting to deluged on", suffix="%s:%d" % (dhost, dport), loglevel=LL.INFO)
-        self.xcon = DelugeRPCClient(dhost, dport, duser, dpass)
+        logthis("Connecting to deluged on", suffix="%s:%d" % (dhost, dport), loglevel=LL.VERBOSE)
+        self.xcon = DelugeRPCUnicode(dhost, dport, duser, dpass)
         try:
             self.xcon.connect()
             self.client_version = self.xcon.call('daemon.info')
@@ -91,8 +120,8 @@ class delcon:
         except Exception as e:
             logthis("Failed to connect to Deluge:", suffix=e, loglevel=LL.ERROR)
             if abortfail: failwith(ER.CONF_BAD, "Connection to Deluge failed. Aborting.")
-        logthis("Connected to Deluge OK", ccode=C.GRN, loglevel=LL.INFO)
-        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.INFO)
+        logthis("Connected to Deluge OK", ccode=C.GRN, loglevel=LL.VERBOSE)
+        logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.VERBOSE)
         self.connected = True
 
     def getTorrent(self, torid):
@@ -163,7 +192,7 @@ class delcon:
     def __remap_tinfo_all(self, inlist):
         """remap dict of deluge torrents to rainwatch tinfo schema"""
         listout = {}
-        for tkey, tdata in inlist.iteritems():
+        for tkey, tdata in inlist.items():
             listout[tkey] = self.__remap_tinfo(tdata)
         return listout
 
@@ -171,19 +200,19 @@ class delcon:
         """remap deluge-specific schema to rainwatch tinfo schema"""
         # remap most values
         newdata = { map_tinfo[ikey]: ival for ikey, ival in indata.items() }
-        if newdata.has_key(None): del(newdata[None])
+        if None in newdata: del(newdata[None])
 
         # set other unmapped or extrapolated values
-        if indata.has_key('save_path') and indata.has_key('name'):
+        if 'save_path' in indata and 'name' in indata:
             newdata['path'] = "%s/%s" % (indata['save_path'], indata['name'])
 
         # build file list
-        if indata.has_key('files'):
+        if 'files' in indata:
             newfiles = []
             for tnum, tf in enumerate(indata['files']):
                 # remap file object
                 newfile = { map_tinfo_files[tfk]: tfv for tfk, tfv in tf.items() }
-                if newfile.has_key(None): del(newfile[None])
+                if None in newfile: del(newfile[None])
                 # set unmapped values
                 newfile['progress'] = indata['file_progress'][tnum] * 100.0
                 newfile['priority'] = indata['file_priorities'][tnum]
@@ -192,12 +221,12 @@ class delcon:
             newdata['files'] = tuple(newfiles)
 
         # build tracker list
-        if indata.has_key('trackers'):
+        if 'trackers' in indata:
             newtracks = []
             for tnum, tf in enumerate(indata['trackers']):
                 # remap tracker object
                 newtrack = { map_tinfo_trackers[tfk]: tfv for tfk, tfv in tf.items() }
-                if newtrack.has_key(None): del(newtrack[None])
+                if None in newtrack: del(newtrack[None])
                 # set unmapped values
                 newtrack['success_count'] = None
                 newtrack['enabled'] = True

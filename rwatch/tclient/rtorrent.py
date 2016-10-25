@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -16,10 +16,10 @@ https://ycnrg.org/
 
 import os
 import re
-import xmlrpclib
+import xmlrpc.client
 from collections import defaultdict, deque
 
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from rwatch.logthis import *
 
@@ -133,8 +133,8 @@ class rtcon:
 
     def __init__(self, uri, abortfail=True):
         """connect to deluged and authenticate"""
-        logthis("Connecting to rTorrent RPC via", suffix=uri, loglevel=LL.INFO)
-        self.xcon = xmlrpclib.ServerProxy(uri)
+        logthis("Connecting to rTorrent RPC via", suffix=uri, loglevel=LL.VERBOSE)
+        self.xcon = xmlrpc.client.ServerProxy(uri)
         mcx = multicall(self.xcon)
         try:
             self.client_version, self.api_version, self.libtor_version = mcx.q('system.client_version').q('system.api_version').q('system.library_version').run()
@@ -144,8 +144,8 @@ class rtcon:
                 failwith(ER.CONF_BAD, "Connection to rTorrent failed. Aborting.")
             else:
                 return
-        logthis("Connected to rTorrent OK", ccode=C.GRN, loglevel=LL.INFO)
-        logthis("rTorrent %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.INFO)
+        logthis("Connected to rTorrent OK", ccode=C.GRN, loglevel=LL.VERBOSE)
+        logthis("rTorrent %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.VERBOSE)
         self.connected = True
 
     def getTorrent(self, torid):
@@ -164,7 +164,7 @@ class rtcon:
 
         # remap values
         otor = { map_tinfo[tk]: tv for tk, tv in traw.items() }
-        if otor.has_key(None): del(otor[None])
+        if None in otor: del(otor[None])
         logthis("remap:", suffix=otor, loglevel=LL.DEBUG2)
 
         # get files
@@ -174,7 +174,7 @@ class rtcon:
         for tk, td in enumerate(fraw):
             # remap
             tfile = { map_tinfo_files[ik]: iv for ik, iv in td.items() }
-            if tfile.has_key(None): del(tfile[None])
+            if None in tfile: del(tfile[None])
             # extrapolate
             tfile['index'] = tk
             tfile['progress'] = (float(td['f.completed_chunks']) / float(td['f.size_chunks'])) * 100.0
@@ -188,7 +188,7 @@ class rtcon:
         for tk, td in enumerate(rraw):
             # remap
             track = { map_tinfo_trackers[ik]: iv for ik, iv in td.items() }
-            if track.has_key(None): del(track[None])
+            if None in track: del(track[None])
             # extrapolate
             track['type'] = rtorrent_tracker_types[int(td['t.type'])]
             tlist.append(track)
@@ -237,7 +237,7 @@ class rtcon:
         for ttor in traw:
             # remap values
             otor = { map_tinfo[tk]: tv for tk, tv in ttor.items() }
-            if otor.has_key(None): del(otor[None])
+            if None in otor: del(otor[None])
             logthis("remapped:", suffix=otor, loglevel=LL.DEBUG2)
 
             if full:
@@ -250,7 +250,7 @@ class rtcon:
                 for tk, td in enumerate(fraw):
                     # remap
                     tfile = { map_tinfo_files[ik]: iv for ik, iv in td.items() }
-                    if tfile.has_key(None): del(tfile[None])
+                    if None in tfile: del(tfile[None])
                     # extrapolate
                     tfile['index'] = tk
                     tfile['progress'] = (float(td['f.completed_chunks']) / float(td['f.size_chunks'])) * 100.0
@@ -265,7 +265,7 @@ class rtcon:
                 for tk, td in enumerate(rraw):
                     # remap
                     track = { map_tinfo_trackers[ik]: iv for ik, iv in td.items() }
-                    if track.has_key(None): del(track[None])
+                    if None in track: del(track[None])
                     # extrapolate
                     track['type'] = rtorrent_tracker_types[int(td['t.type'])]
                     rlist.append(track)
@@ -372,7 +372,7 @@ class rtcon:
         """get list of torrents in specified view; return a dict with corresponding key-value pairs"""
         # create tuple with view and list of calls with an '=' appended to them
         # then execute d.multicall
-        mcraw = self.xcon.d.multicall(tuple([view] + map(lambda x: "%s=" % (x), calls)))
+        mcraw = self.xcon.d.multicall(tuple([view] + ["%s=" % (x) for x in calls]))
 
         # create dict with "callname: result" structure
         mcres = []
@@ -385,7 +385,7 @@ class rtcon:
         """get list of tracker attribs for specified hashid; return a dict with corresponding key-value pairs"""
         # create tuple with view and list of calls with an '=' appended to them
         # then execute t.multicall; this call requires a dummy argument in the first index of second arg
-        mcraw = self.xcon.t.multicall(hashid, tuple([0] + map(lambda x: "%s=" % (x), calls)))
+        mcraw = self.xcon.t.multicall(hashid, tuple([0] + ["%s=" % (x) for x in calls]))
 
         # create dict with "callname: result" structure
         mcres = []
@@ -398,7 +398,7 @@ class rtcon:
         """get list of file attribs for specified hashid; return a dict with corresponding key-value pairs"""
         # create tuple with view and list of calls with an '=' appended to them
         # then execute f.multicall; this call requires a dummy argument in the first index of second arg
-        mcraw = self.xcon.f.multicall(hashid, tuple([0] + map(lambda x: "%s=" % (x), calls)))
+        mcraw = self.xcon.f.multicall(hashid, tuple([0] + ["%s=" % (x) for x in calls]))
 
         # create dict with "callname: result" structure
         mcres = []

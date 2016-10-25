@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 # vim: set ts=4 sw=4 expandtab syntax=python:
 """
@@ -35,7 +35,7 @@ class XConfig(object):
         self.__data = idata
 
     def __getattr__(self, aname):
-        if self.__data.has_key(aname):
+        if aname in self.__data:
             if isinstance(self.__data[aname], dict):
                 return XConfig(self.__data[aname])
             else:
@@ -195,19 +195,3 @@ def path_exists(fpath):
         else:
             return False
 
-def test_stat(tname, tfile):
-
-    tpid = os.getpid()
-    try:
-        logthis(u"TEST: %s - os.stat(%s)" % (tname, tfile), prefix=tpid, loglevel=LL.WARNING)
-    except Exception as e:
-        logexc(e, "Failed to display log text")
-
-    try:
-        os.stat(tfile)
-        #logthis(u"TEST: ✔ PASSED OK", prefix=tpid, loglevel=LL.WARNING)
-        logthis(u"TEST: PASSED OK", prefix=tpid, loglevel=LL.WARNING)
-        return True
-    except Exception as e:
-        logexc(e, "Failed to run test_stat()")
-        return False

@@ -46,14 +46,43 @@ In RedHat-like distros:
 	sudo yum install redis
 	service redis start
 
-#### xmpppy
+#### Python 3.5
 
-It is recommended to use the Archipel Project's fork of xmpppy, which has fixed a crucial bug in the XMPP registration process.
+Python 3.5 is recommended, but other versions of Python 3.x may work. On Ubuntu 14.04 or Debian 8.x:
 
-	git clone https://github.com/ArchipelProject/xmpppy.git
-	cd xmpppy
-	sudo python setup.py install
+	sudo add-apt-repository ppa:fkrull/deadsnakes
+	sudo apt-get update
+	sudo apt-get install python3.5-complete libpython3.5-dev libpython3.5-stdlib
+	wget https://bootstrap.pypa.io/get-pip.py
+	sudo python3.5 get-pip.py
 
+The pip installer will update your default pip and pip3 packages to use Python 3.5, which is probably not what you want. To revert back to the defaults:
+
+	sudo sed -i 's/python3.5$/python/' `which pip`
+	sudo sed -i 's/python3.5$/python3/' `which pip3`
+
+### PyLint (optional)
+
+PyLint is optional, and is used to check the source for errors and other potential issues.
+
+If you're already using PyLint for Python 2.x, then run the following:
+
+	export PLBASE=$(which pylint)
+	sudo mv $PLBASE{,2}
+	sudo pip3.5 install pylint
+	sudo mv $PLBASE{,3}
+	sudo ln -s $PLBASE{2,}
+
+This will give you `pylint`, which is symlinked to `pylint2`, as well as `pylint3`.
+
+Otherwise, if you only need PyLint for Python 3.x, run the following:
+
+	sudo pip3.5 install pylint
+	sudo ln -s `which pylint`{,3}
+
+This will give you `pylint`, which is symlinked to `pylint3`.
+
+Whichever method you choose, the linter task in Gulp will reference `pylint3`.
 
 ### Rainwatch install
 
@@ -159,6 +188,8 @@ Rainwatch can send completion notifications after a succesesful transfer, as wel
 - pass _(None)_ - Password
 - server _(None)_ - Explicitly connect to this hostname, rather than relying on SRV records
 - sendto _(None)_ - JID to send notifications. This can be a different domain (eg. sent to a user on a different Jabber server), as long as the host server is federated.
+- avatar\_img _(None)_ - Path to an image to use for the Jabber bot's profile icon (optional). Should be of sensible dimensions. PNG or GIF types are recommended. Theoretically, any image type is possible, but clients must have the necessary support to display the supplied type.
+- nick _(None)_ - Nickname for the bot to use (optional)
 
 #### [deluge] - Deluge JSON-RPC configuration
 

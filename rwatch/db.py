@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.5
 # coding=utf-8
 """
 
@@ -106,7 +106,7 @@ class redis:
         if prefix:
             self.rprefix = prefix
         try:
-            self.rcon = xredis.Redis(**self.conndata)
+            self.rcon = xredis.Redis(encoding='utf-8', decode_responses=True, **self.conndata)
         except Exception as e:
             logthis("Error connecting to Redis", loglevel=LL.ERROR, suffix=e)
             return
