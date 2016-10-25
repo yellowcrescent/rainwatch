@@ -128,7 +128,7 @@ def send(method, params={}):
     """
     send command to jabber client process
     """
-    global rdx
+    global rdx, conf
     if conf.xmpp['user'] and conf.xmpp['pass']:
         rdx.lpush("jabber_out", json.dumps({ 'method': method, 'params': params }))
 
