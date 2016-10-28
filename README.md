@@ -46,6 +46,15 @@ In RedHat-like distros:
 	sudo yum install redis
 	service redis start
 
+#### MongoDB
+
+Mongo is used for storage of rules, logging (optionally), and certain configuration parameters.
+
+*MongoDB 3.0 or later is required*
+
+> https://docs.mongodb.com/v3.0/administration/install-on-linux/
+
+
 #### Python 3.5
 
 Python 3.5 is recommended, but other versions of Python 3.x may work. On Ubuntu 14.04 or Debian 8.x:
@@ -84,6 +93,14 @@ This will give you `pylint`, which is symlinked to `pylint3`.
 
 Whichever method you choose, the linter task in Gulp will reference `pylint3`.
 
+### SleekXMPP install
+
+Rainwatch requires SleekXMPP 1.4.0 or later. As of this writing, it is not yet available from PyPI, so it must be installed from source.
+
+	git clone https://github.com/fritzy/SleekXMPP.git
+	cd SleekXMPP
+	sudo python3.5 setup.py install
+
 ### Rainwatch install
 
 	git clone https://git.ycnrg.org/scm/yrw/rainwatch.git
@@ -96,6 +113,30 @@ Alternatively, use `develop` (instead of `install`) to allow for easy updates or
 
 	sudo python setup.py develop
 
+### List of Prerequisites
+
+##### Python modules
+
+- docutils
+- setproctitle
+- PyMongo
+- Redis
+- PyMediaInfo
+- Enzyme
+- deluge-client
+- dnspython
+- Arrow
+- Paramiko
+- Flask (>=0.10.1)
+- Requests (>=2.2.1)
+- Pillow (>=3.4.0)
+- SleekXMPP (>=1.4.0)
+
+##### External programs
+
+- [Redis](http://redis.io/)
+- [MongoDB](https://www.mongodb.com/) (>=3.0)
+- [PyLint](https://pylint.org/) (optional, >=1.6.0)
 
 ## Configuration
 
