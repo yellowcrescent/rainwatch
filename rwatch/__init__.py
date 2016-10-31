@@ -18,8 +18,8 @@ https://ycnrg.org/
 from rwatch.util import XConfig, git_info_raw
 from rwatch.logthis import *
 
-__version__ = "0.12.1"
-__date__ = "25 Oct 2016"
+__version__ = "0.12.2"
+__date__ = "30 Oct 2016"
 
 __all__ = ['gitinfo', 'defaults', '__version__', '__date__']
 
@@ -39,6 +39,7 @@ defaults = {
             },
             'core': {
                 'loglevel': LL.INFO,
+                'logfile_level': LL.VERBOSE,
                 'logfile': "rainwatch.log",
                 'rules': "rainwatch.rules",
                 'tclient': "deluge"

@@ -125,6 +125,7 @@ Alternatively, use `develop` (instead of `install`) to allow for easy updates or
 - Enzyme
 - deluge-client
 - dnspython
+- pyzmq
 - Arrow
 - Paramiko
 - Flask (>=0.10.1)
@@ -180,7 +181,8 @@ Each option name is followed by the default value in italics. _(None)_ indicates
 #### [core] - Core configuration
 
 - loglevel _(info)_ - Log level
-- logfile _(rainwatch.log)_ - Log file output
+- logfile _(rainwatch.log)_ - Log output target. Valid targets: local file, null, `mongodb://`, `tcp://`, `udp://`, `zmq+tcp://`, `zmq+udp://`, `syslog://`, `redis://`.
+- logfile\_level _(verbose)_ - Log level for logging output
 - rules _(rainwatch.rules)_ - Rule file
 - tclient _(deluge)_ - Torrent client: one of __deluge__ or __rtorrent__
 

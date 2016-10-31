@@ -178,7 +178,7 @@ def _main():
     xopt = parse_cli()
     config = rcfile.loadConfig(cliopts=xopt)
     loglevel(config.core['loglevel'])
-    openlog(config.core['logfile'])
+    configure_logger(config)
 
     # Set quiet exception handler for non-verbose operation
     if config.core['loglevel'] < LL.VERBOSE:
@@ -209,7 +209,7 @@ def _main():
         logthis("Nothing to do.", loglevel=LL.WARNING)
         rval = 1
 
-    closelog()
+    #closelog()
     sys.exit(rval)
 
 if __name__ == '__main__':

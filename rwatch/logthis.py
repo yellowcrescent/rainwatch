@@ -16,12 +16,18 @@ https://ycnrg.org/
 
 import os
 import sys
-import traceback
 import inspect
 import json
 import re
-import codecs
-from datetime import datetime
+import time
+import socket
+import syslog
+from urllib.parse import urlparse
+
+import arrow
+import zmq
+
+from rwatch.db import mongo, redis
 
 class C:
     """ANSI Colors"""
@@ -87,6 +93,7 @@ class xbError(Exception):
 
 class LL:
     SILENT   = 0
+    ALERT    = 1
     CRITICAL = 2
     ERROR    = 3
     WARNING  = 4
@@ -97,6 +104,7 @@ class LL:
     DEBUG2   = 9
     lname = {
                 0: 'silent',
+                1: 'alert',
                 2: 'critical',
                 3: 'error',
                 4: 'warning',
@@ -106,15 +114,252 @@ class LL:
                 8: 'debug',
                 9: 'debug2'
             }
+    syslog = {
+                0: syslog.LOG_EMERG,
+                1: syslog.LOG_ALERT,
+                2: syslog.LOG_CRIT,
+                3: syslog.LOG_ERR,
+                4: syslog.LOG_WARNING,
+                5: syslog.LOG_NOTICE,
+                6: syslog.LOG_NOTICE,
+                7: syslog.LOG_INFO,
+                8: syslog.LOG_DEBUG,
+                9: syslog.LOG_DEBUG
+            }
+
+
+class loggerMaster():
+    ready = False
+    loglevel = LL.VERBOSE
+    log_pid = True
+    log_level = True
+    log_time = True
+
+    def log(self, msg, loglevel, mname=None, fname=None, linenum=None, **kwargs):
+        if self.loglevel >= loglevel:
+            nmsg = decolor(msg)
+            tepoch = time.time()
+            lpid = os.getpid()
+            spid = ""
+            slevel = ""
+            tformat = ""
+            if self.log_pid:
+                spid = "(%d) " % (lpid)
+            if self.log_time:
+                tformat = arrow.get(tepoch).format("YYYY-MM-DD HH:mm:ss.SSS") + " "
+            if self.log_level:
+                slevel = "%s: " % (LL.lname[loglevel].upper())
+            logline = "%s%s[%s:%s:%s] %s%s" % \
+                      (tformat, spid, mname, fname, linenum, slevel, nmsg)
+            self.write(logline, timestamp=tepoch, level=LL.lname[loglevel], rmsg=nmsg, rmodule=mname,
+                       rfunction=fname, rline=linenum, rpid=lpid, rlevel=loglevel, **kwargs)
+
+    def startup(self):
+        from rwatch import __version__, __date__, gitinfo
+        prxname = os.path.basename(sys.argv[0])
+        self.log("Logging started: %s - Version %s (%s)\n" % (prxname, __version__, __date__), LL.INFO)
+        self.ready = True
+
+    def shutdown(self):
+        self.ready = False
+        self.log("Closing log target", LL.INFO)
+
+class loggerFile(loggerMaster):
+    logtype = 'file'
+    __handle = None
+    fastflush = True
+
+    def __init__(self, path, loglevel=None, fastflush=True):
+        self.fastflush = fastflush
+        if loglevel is not None:
+            self.loglevel = loglevel
+        prxname = os.path.basename(sys.argv[0])
+        try:
+            self.__handle = open(path, 'a')
+        except FileNotFoundError:
+            logexc(e, "Unable to open file: %s" % (path))
+            failwith(ER.CONF_BAD, "Invalid logfile path. Update core.logfile in config and try again.")
+        except PermissionError:
+            logexc(e, "Insufficient permission to open file: %s" % (path))
+            failwith(ER.CONF_BAD, "Invalid logfile path or perms. Update core.logfile in config and try again.")
+        self.startup()
+
+    def write(self, msg, **kwargs):
+        self.__handle.write(msg + '\n')
+        if self.fastflush:
+            self.__handle.flush()
+
+    def __del__(self):
+        if self.__handle is not None:
+            try:
+                self.shutdown()
+                __handle.close()
+            except:
+                pass
+
+class loggerMongo(loggerMaster):
+    logtype = 'mongo'
+    __mon = None
+    collection = 'log'
+
+    def __init__(self, uri, loglevel=None, collection='log', use_capped=True, capsize=1000000):
+        self.__mon = mongo(uri)
+        self.collection = collection
+        if loglevel is not None:
+            self.loglevel = loglevel
+        if self.collection not in self.__mon.get_collections():
+            logthis("Creating new collection (use_capped=%s, capsize=%d):" % (use_capped, capsize),
+                    suffix=self.collection, loglevel=LL.VERBOSE)
+            # create new collection
+            if use_capped:
+                self.__mon.create_collection(self.collection, capped=True, size=capsize)
+            else:
+                self.__mon.create_collection(self.collection)
+        self.startup()
+
+    def write(self, msg, **kwargs):
+        xout = {}
+        xout.update(kwargs)
+        xout.update({'message': msg})
+        self.__mon.insert(self.collection, xout)
+
+    def __del__(self):
+        self.shutdown()
+        self.__mon.close()
+
+class loggerZMQ(loggerMaster):
+    logtype = 'zeromq'
+    __context = None
+    __socket = None
+
+    def __init__(self, uri, loglevel=None):
+        uri = uri.replace('zmq+', '')
+        if loglevel is not None:
+            self.loglevel = loglevel
+        try:
+            self.__context = zmq.Context()
+            self.__socket = self.__context.socket(zmq.REQ)
+            self.__socket.connect(uri)
+        except zmq.ZMQError as e:
+            logexc(e, "Failed to establish ZeroMQ connection to host")
+            failwith(ER.CONF_BAD, "Check local logfile configuration and ensure remote host is ready")
+        self.startup()
+
+    def write(self, msg, **kwargs):
+        xout = {}
+        xout.update(kwargs)
+        xout.update({'message': msg, 'type': "yclogthis", 'app': os.path.basename(sys.argv[0]), 'host': socket.gethostname()})
+        if 'timestamp' in xout:
+            xout['@timestamp'] = xout['timestamp']
+            del(xout['timestamp'])
+        self.__socket.send_string(json.dumps(xout))
+        self.__socket.recv()
+
+    def __del__(self):
+        try:
+            self.__socket.close()
+        except:
+            pass
+
+class loggerJStream(loggerMaster):
+    logtype = 'json_stream'
+    __socket = None
+    host = None
+    port = None
+    socktype = None
+
+    def __init__(self, uri, loglevel=None):
+        uparse = urlparse(uri)
+        self.host = uparse.hostname
+        self.port = uparse.port
+        if uparse.scheme == 'udp':
+            self.socktype = socket.SOCK_DGRAM
+        elif uparse.scheme == 'tcp':
+            self.socktype = socket.SOCK_STREAM
+        else:
+            logthis("URI containing an invalid scheme was specified. Only udp:// and tcp:// are allowed.", loglevel=LL.ERROR)
+            failwith(ER.CONF_BAD, "Invalid URI. Check logfile configuration and try again.")
+        if self.port is None:
+            logthis("URI containing both a hostname and port is required (eg. 'udp://server.example.com:8901')", loglevel=LL.ERROR)
+            failwith(ER.CONF_BAD, "Invalid URI. Check logfile configuration and try again.")
+        if loglevel is not None:
+            self.loglevel = loglevel
+
+        for res in socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, self.socktype):
+            af, socktype, proto, canonname, sa = res
+            try:
+                self.__socket = socket.socket(af, socktype, proto)
+            except OSError:
+                logthis("Socket creation failed:", suffix=str(e), loglevel=LL.VERBOSE)
+                self.__socket = None
+                continue
+            try:
+                self.__socket.connect(sa)
+                self.__socket.setblocking(False)
+            except OSError:
+                logthis("Connection attempt failed:", suffix=str(e), loglevel=LL.VERBOSE)
+                self.__socket.close()
+                continue
+            break
+        if self.__socket is None:
+            logthis("Unable to connect to establish connection to", suffix=uri, loglevel=LL.ERROR)
+            failwith(ER.CONF_BAD, "Check logfile configuration and ensure remote host is ready")
+        self.startup()
+
+    def write(self, msg, **kwargs):
+        xout = {}
+        xout.update(kwargs)
+        xout.update({'message': msg, 'type': "yclogthis", 'app': os.path.basename(sys.argv[0]), 'host': socket.gethostname()})
+        if 'timestamp' in xout:
+            xout['timestamp_f'] = xout['timestamp']
+            xout['timestamp'] = isotime(xout['timestamp'])
+        self.__socket.sendall(bytes(json.dumps(xout)+"\n", 'utf-8'))
+        try:
+            resp = self.__socket.recv(4096)
+        except BlockingIOError:
+            pass
+
+    def __del__(self):
+        if self.__socket is not None:
+            try:
+                self.__socket.close()
+            except:
+                pass
+
+class loggerSyslog(loggerMaster):
+    logtype = 'syslog'
+
+    def __init__(self, loglevel=None):
+        if loglevel is not None:
+            self.loglevel = loglevel
+        self.log_pid = False
+        #self.log_level = False
+        self.log_time = False
+        syslog.openlog(ident=os.path.basename(sys.argv[0]), logoption=syslog.LOG_PID, facility=syslog.LOG_DAEMON)
+        self.startup()
+
+    def write(self, msg, **kwargs):
+        if 'rlevel' in kwargs:
+            syslog.syslog(LL.syslog[kwargs['rlevel']], msg)
+        else:
+            syslog.syslog(msg)
+
+    def __del__(self):
+        try:
+            syslog.closelog()
+        except:
+            pass
+
 
 # set default loglevel
 g_loglevel = LL.INFO
 
 # logfile handle
 loghand = None
+handler = None
 
 def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
-    global g_loglevel
+    global g_loglevel, handler
 
     try:
         zline = ''
@@ -164,8 +409,10 @@ def logthis(logline, loglevel=LL.DEBUG, prefix=None, suffix=None, ccode=None):
     if g_loglevel >= loglevel:
         sys.stdout.write(finline)
 
-    # write to logfile
-    writelog(finline)
+    # write to log target
+    if handler is not None:
+        if handler.ready is True:
+            handler.log(zline, loglevel, mname=lmodname, fname=lfunc, linenum=lline)
 
 
 def logexc(e, msg, prefix=None):
@@ -173,41 +420,6 @@ def logexc(e, msg, prefix=None):
     if msg: msg += ": "
     suffix = C.WHT + "[" + C.YEL + str(e.__class__.__name__) + C.WHT + "] " + C.YEL + str(e)
     logthis(msg, LL.ERROR, prefix, suffix)
-    log_traceback()
-
-def openlog(fname="rainwatch.log"):
-    """open log file"""
-    from rwatch import __version__, __date__, gitinfo
-    global loghand
-    prxname = os.path.basename(sys.argv[0])
-    try:
-        loghand = codecs.open(fname, 'a', 'utf-8')
-        writelog("Logging started.\n")
-        writelog("%s - Version %s (%s)\n" % (prxname, __version__, __date__))
-        return True
-    except Exception as e:
-        logthis("Failed to open logfile '%s' for writing:" % (fname), suffix=e, loglevel=LL.ERROR)
-        return False
-
-def closelog():
-    global loghand
-    if loghand:
-        try:
-            loghand.close()
-            return True
-        except:
-            return False
-    else:
-        return True
-
-def writelog(logmsg):
-    global loghand
-    if loghand:
-        loghand.write("[ %s ] %s" % (datetime.now().strftime("%d/%b/%Y %H:%M:%S.%f"), decolor(logmsg)))
-        loghand.flush()
-
-def log_traceback():
-    traceback.print_exc(file=loghand)
 
 def decolor(instr):
     return re.sub(r'\033\[(3[0-9]m|1?m|4D|2J|K|0;0f)', '', instr)
@@ -220,7 +432,6 @@ def loglevel(newlvl=None):
 
 def failwith(etype, errmsg):
     logthis(errmsg, loglevel=LL.ERROR)
-
     raise xbError(etype)
 
 def exceptionHandler(exception_type, exception, traceback):
@@ -228,3 +439,45 @@ def exceptionHandler(exception_type, exception, traceback):
 
 def print_r(ind):
     return json.dumps(ind, indent=4, separators=(',', ': '))
+
+def isotimenow():
+    return arrow.utcnow().format(r"YYYY-MM-DDTHH:mm:ss.SSS")+"Z"
+
+def isotime(tstamp):
+    return arrow.get(tstamp).format(r"YYYY-MM-DDTHH:mm:ss.SSS")+"Z"
+
+def configure_logger(xconfig):
+    """
+    Configure logging to filesystem, MongoDB, or Redis
+    """
+    global handler
+    handler = None
+    hset = False
+    if isinstance(xconfig.core['logfile'], str):
+        if len(xconfig.core['logfile'].strip()) > 0:
+            larg = urlparse(xconfig.core['logfile'])
+            if larg.scheme.lower() == 'mongodb':
+                handler = loggerMongo(xconfig.core['logfile'], loglevel=xconfig.core['logfile_level'])
+                hset = True
+            elif larg.scheme.lower().startswith('zmq+'):
+                handler = loggerZMQ(xconfig.core['logfile'], loglevel=xconfig.core['logfile_level'])
+                hset = True
+            elif larg.scheme.lower() == 'udp' or larg.scheme.lower() == 'tcp':
+                handler = loggerJStream(xconfig.core['logfile'], loglevel=xconfig.core['logfile_level'])
+                hset = True
+            elif larg.scheme.lower() == 'syslog':
+                handler = loggerSyslog(loglevel=xconfig.core['logfile_level'])
+                hset = True
+            elif larg.scheme.lower() == '':
+                handler = loggerFile(xconfig.core['logfile'], loglevel=xconfig.core['logfile_level'])
+                hset = True
+            elif re.match(r'^(null|none)(://)?$', xconfig.core['logfile'].strip(), re.I):
+                pass
+            else:
+                failwith(ER.CONF_BAD, "Invalid log target: %s" % (xconfig.core['logfile']))
+
+    if hset is False:
+        logthis("External logging disabled", loglevel=LL.VERBOSE)
+        return None
+    else:
+        return handler.logtype

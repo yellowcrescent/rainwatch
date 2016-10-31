@@ -13,32 +13,46 @@ https://ycnrg.org/
 
 """
 
-import pymongo
+from urllib.parse import urlparse
+
+from pymongo import MongoClient
+from pymongo.errors import *
 import redis as xredis
 
-from rwatch.logthis import *
+#from rwatch.logthis import *
+#from rwatch.logthis import LL, ER, logthis, logexc, failwith
 
 
 class mongo:
     """Hotamod class for handling Mongo stuffs"""
     xcon = None
     xcur = None
-    conndata = {}
     silence = False
 
-    def __init__(self, cdata={}, silence=False):
+    def __init__(self, uri=None, silence=False):
         """Initialize and connect to MongoDB"""
+        from rwatch.logthis import LL, ER, C, logthis, logexc, failwith
         self.silence = silence
-        if cdata:
-            self.conndata = cdata
         try:
-            self.xcon = pymongo.MongoClient()
+            self.xcon = MongoClient(uri)
+        except InvalidURI as e:
+            logexc(e, "Invalid mongodb URI (%s)" % (uri))
+            failwith(ER.CONF_BAD, "Invalid MongoDB configuration")
+        except ConfigurationError as e:
+            logexc(e, "Invalid mongodb URI (%s)" % (uri))
+            failwith(ER.CONF_BAD, "Invalid MongoDB configuration")
         except Exception as e:
-            logthis("Failed connecting to Mongo --", loglevel=LL.ERROR, suffix=e)
-            return False
+            logexc(e, "Failed to connect to MongoDB (%s)" % (uri))
+            failwith(ER.CONF_BAD, "Unable to connect to MongoDB. Please check configuration.")
 
-        self.xcur = self.xcon[self.conndata['database']]
-        if not self.silence: logthis("Connected to Mongo OK", loglevel=LL.INFO, ccode=C.GRN)
+        muri = urlparse(uri)
+        if len(muri.path) > 1:
+            self.xcur = self.xcon[muri.path[1:]]
+            if not self.silence: logthis("Connected to Mongo OK", loglevel=LL.DEBUG, ccode=C.GRN)
+        else:
+            logthis("MongoDB URI provided does not include a database (example: 'mongodb://localhost/mydatabase')",
+                    loglevel=LL.ERROR)
+            failwith(ER.CONF_BAD, "Invalid MongoDB configuration")
 
     def find(self, collection, query):
         xresult = {}
@@ -52,13 +66,15 @@ class mongo:
         try:
             self.xcur[collection].update({'_id': monid}, {'$set': setter})
         except Exception as e:
-            logthis("Failed to update document(s) in Mongo --", loglevel=LL.ERROR, suffix=e)
+            #logthis("Failed to update document(s) in Mongo --", loglevel=LL.ERROR, suffix=e)
+            pass
 
     def upsert(self, collection, monid, indata):
         try:
             self.xcur[collection].update({'_id': monid}, indata, upsert=True)
         except Exception as e:
-            logthis("Failed to upsert document in Mongo --", loglevel=LL.ERROR, suffix=e)
+            #logthis("Failed to upsert document in Mongo --", loglevel=LL.ERROR, suffix=e)
+            pass
 
     def findOne(self, collection, query):
         return self.xcur[collection].find_one(query)
@@ -79,16 +95,21 @@ class mongo:
     def delete(self, collection, query):
         return self.xcur[collection].delete_one(query)
 
+    def get_collections(self):
+        return self.xcur.collection_names()
+
+    def create_collection(self, collection, **kwargs):
+        return self.xcur.create_collection(collection, **kwargs)
+
     def close(self):
         if self.xcon:
             self.xcon.close()
-            if not self.silence: logthis("Disconnected from Mongo")
 
     def __del__(self):
         """Disconnect from MongoDB"""
         if self.xcon:
             self.xcon.close()
-            #if not self.silence: logthis("Disconnected from Mongo")
+
 
 class redis:
     """Hotamod class for Redis stuffs"""
@@ -100,6 +121,7 @@ class redis:
 
     def __init__(self, cdata={}, prefix='', silence=False):
         """Initialize Redis"""
+        from rwatch.logthis import LL, ER, C, logthis, logexc, failwith
         self.silence = silence
         if cdata:
             self.conndata = cdata
@@ -111,7 +133,8 @@ class redis:
             logthis("Error connecting to Redis", loglevel=LL.ERROR, suffix=e)
             return
 
-        if not self.silence: logthis("Connected to Redis OK", loglevel=LL.INFO, ccode=C.GRN)
+        if not self.silence:
+            logthis("Connected to Redis OK", loglevel=LL.INFO, ccode=C.GRN)
 
 
     def set(self, xkey, xval, usepipe=False, noprefix=False):
@@ -160,12 +183,13 @@ class redis:
         try:
             self.rpipe = self.rcon.pipeline()
         except Exception as e:
-            logthis("Error creating Redis pipeline", loglevel=LL.ERROR, suffix=e)
+            #logthis("Error creating Redis pipeline", loglevel=LL.ERROR, suffix=e)
+            pass
 
     def execpipe(self):
         if self.rpipe:
             self.rpipe.execute()
-            logthis("Redis: No pipeline to execute", loglevel=LL.ERROR)
+            #logthis("Redis: No pipeline to execute", loglevel=LL.ERROR)
 
     def count(self):
         return self.rcon.dbsize()

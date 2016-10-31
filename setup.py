@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 setup(
     name = "rainwatch",
-    version = "0.12.1",
+    version = "0.12.2",
     author = "Jacob Hipps",
     author_email = "jacob@ycnrg.org",
     license = "MIT",
@@ -15,7 +15,7 @@ setup(
     packages = find_packages(),
     scripts = [],
 
-    install_requires = ['docutils', 'setproctitle', 'pymongo', 'redis', 'pymediainfo', 'enzyme',
+    install_requires = ['docutils', 'setproctitle', 'pymongo', 'redis', 'pyzmq', 'pymediainfo', 'enzyme',
                         'deluge-client', 'paramiko', 'flask>=0.10.1', 'requests>=2.2.1',
                         'arrow', 'sleekxmpp>=1.4.0', 'dnspython', 'Pillow>=3.4.0'],
 
