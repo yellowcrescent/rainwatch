@@ -180,8 +180,11 @@ def _main():
     loglevel(config.core['loglevel'])
     configure_logger(config)
 
-    # Set quiet exception handler for non-verbose operation
-    if config.core['loglevel'] < LL.VERBOSE:
+    # Set quiet exception handler for quiet operation
+    # Otherwise use the verbose handler, which logs the exception to logging targets
+    if config.core['loglevel'] < LL.INFO:
+        sys.excepthook = exceptionHandlerQuiet
+    else:
         sys.excepthook = exceptionHandler
 
     # parse rules file

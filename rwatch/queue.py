@@ -20,6 +20,7 @@ import re
 import time
 import json
 from setproctitle import setproctitle
+from datetime import datetime
 
 from rwatch.logthis import *
 from rwatch.util import *
@@ -206,7 +207,6 @@ def cb_xfer(jdata):
         logthis(">> Starting transfer to remote host:",
                 suffix="%s:%s" % (conf.xfer['hostname'], conf.xfer['basepath']), loglevel=LL.INFO)
         xstart = datetime.now()
-        #rexec(['/usr/bin/scp', '-B', '-r', tgpath, "%s:'%s'" % (conf.xfer['hostname'], conf.xfer['basepath'])])
         rsh.xfer(tgpath, conf.xfer['basepath'])
         xstop = datetime.now()
         logthis("** Transfer complete.", loglevel=LL.INFO)

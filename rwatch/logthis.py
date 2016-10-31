@@ -17,6 +17,7 @@ https://ycnrg.org/
 import os
 import sys
 import inspect
+import traceback
 import json
 import re
 import time
@@ -434,8 +435,26 @@ def failwith(etype, errmsg):
     logthis(errmsg, loglevel=LL.ERROR)
     raise xbError(etype)
 
-def exceptionHandler(exception_type, exception, traceback):
+def exceptionHandlerQuiet(exception_type, exception, traceback):
     print("%s: %s" % (exception_type.__name__, exception))
+
+def exceptionHandler(etype, evalue, etb):
+    fstack = []
+    for tframe, tsnum in traceback.walk_tb(etb):
+        argvals = inspect.getargvalues(tframe)
+        finfo = inspect.getframeinfo(tframe)
+        srcfile = os.path.realpath(finfo.filename)
+        mname = inspect.getmodulename(srcfile)
+        fname = finfo.function
+        fargs = inspect.formatargvalues(argvals.args, argvals.varargs, argvals.keywords, argvals.locals)
+        srcline = inspect.getsourcelines(tframe)
+        lineno = finfo.lineno
+        if fname == '<module>': continue
+        fstack.append("%s:%s.%s%s @ line %d" % (srcfile, mname, fname, fargs, lineno))
+    osrc = srcline[0][lineno - srcline[1]]
+    outbuf = " --> ".join(fstack) + ", an exception was thrown: " + traceback.format_exception_only(etype, evalue)[0].strip() + \
+             " -- source: `" + osrc.strip() + "`"
+    logthis(outbuf, loglevel=LL.CRITICAL)
 
 def print_r(ind):
     return json.dumps(ind, indent=4, separators=(',', ': '))

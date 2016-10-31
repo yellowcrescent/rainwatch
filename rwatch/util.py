@@ -50,7 +50,9 @@ class XConfig(object):
         return print_r(self.__data)
 
     def __repr__(self):
-        return print_r(self.__data)
+        return "<XConfig: srv.url=%s, srv.port=%s, core.tclient=%s, xmpp.user=%s, ...>" % \
+               (self.__data['srv']['url'], self.__data['srv']['port'],
+                self.__data['core']['tclient'], self.__data['xmpp']['user'])
 
 
 def rexec(optlist, supout=False):
