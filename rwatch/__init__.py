@@ -18,8 +18,8 @@ https://ycnrg.org/
 from rwatch.util import XConfig, git_info_raw
 from rwatch.logthis import *
 
-__version__ = "0.12.3"
-__date__ = "31 Oct 2016"
+__version__ = "0.12.4"
+__date__ = "15 Jan 2017"
 
 __all__ = ['gitinfo', 'defaults', '__version__', '__date__']
 

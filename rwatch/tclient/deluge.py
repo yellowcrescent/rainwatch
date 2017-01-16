@@ -6,7 +6,7 @@
 rwatch.tclient.deluge
 Rainwatch > Deluge RPC client
 
-Copyright (c) 2016 J. Hipps / Neo-Retro Group
+Copyright (c) 2016-2017 J. Hipps / Neo-Retro Group
 https://ycnrg.org/
 
 @author     Jacob Hipps <jacob@ycnrg.org>
@@ -19,6 +19,7 @@ import re
 from collections import defaultdict
 
 from deluge_client import DelugeRPCClient
+from deluge_client.client import ConnectionLostException, CallTimeoutException
 
 from rwatch.logthis import *
 
@@ -124,8 +125,31 @@ class delcon:
         logthis("Deluge %s (libtorrent %s)" % (self.client_version, self.libtor_version), loglevel=LL.VERBOSE)
         self.connected = True
 
+    def checkConnection(self, auto_reconnect=True):
+        """check status of current connection and automatically re-establish a broken connection"""
+        try:
+            if self.connected is True:
+                self.xcon.call('daemon.info')
+        except (BrokenPipeError, ConnectionLostException, CallTimeoutException):
+            self.connected = False
+
+        if auto_reconnect is True:
+            if self.connected is False:
+                rcreds = (self.xcon.host, self.xcon.port, self.xcon.username, self.xcon.password)
+                self.xcon = DelugeRPCUnicode(*rcreds)
+                try:
+                    self.xcon.connect()
+                    self.client_version = self.xcon.call('daemon.info')
+                    self.libtor_version = self.xcon.call('core.get_libtorrent_version')
+                    self.connected = True
+                    logthis("Re-established connection to Deluge", loglevel=LL.WARNING)
+                except Exception as e:
+                    logexc(e, "Deluge re-connection attempt failed")
+        return self.connected
+
     def getTorrent(self, torid):
         """get info on a particular torrent"""
+        self.checkConnection()
         try:
             interdata = self.xcon.call('core.get_torrent_status', torid, [])
         except Exception as e:
@@ -136,6 +160,7 @@ class delcon:
 
     def getTorrentList(self, filter={}, full=False):
         """get list of torrents; setting full=True will return all fields for all torrents"""
+        self.checkConnection()
         if full:
             fields = []
         else:
@@ -151,6 +176,7 @@ class delcon:
 
     def renameFolder(self, torid, newname):
         """rename torrent directory name"""
+        self.checkConnection()
         # first, get info on this torrent
         torinfo = self.xcon.call('core.get_torrent_status', torid, [])
 
@@ -182,6 +208,7 @@ class delcon:
             logthis("Failed to move torrent storage. Directory does not exist:", suffix=rpdir, loglevel=LL.ERROR)
             return False
 
+        self.checkConnection()
         try:
             self.xcon.call('core.move_storage', torids, rpdir)
             return True
